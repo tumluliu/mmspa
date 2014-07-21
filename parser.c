@@ -29,7 +29,7 @@ int Parse(const char* path)
 	struct dirent *entry;
 	char graphspath[128];
 	strcpy(graphspath, path);
-	strcat(graphspath, "graphs\\");
+	strcat(graphspath, "graphs/");
 
 	if (InitializeGraphs(graphspath) == EXIT_FAILURE)
 	{
