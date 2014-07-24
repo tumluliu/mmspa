@@ -18,6 +18,7 @@ autom4te.cache/
 .libs/
 .deps/
 
+fooltest
 config.cache
 config.h
 config.intl
