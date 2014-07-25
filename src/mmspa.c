@@ -4,7 +4,7 @@
  *  Created on: Mar 25, 2009
  *      Author: LIU Lu
  */
-#include "mmspa.h"
+#include "../include/mmspa.h"
 
 PathRecorder*** pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;

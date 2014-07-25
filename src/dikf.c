@@ -1,7 +1,7 @@
 /* Dijkstra with Fibonacci heap */
 
-#include "mmspa.h"
-#include "f_heap.h"
+#include "../include/mmspa.h"
+#include "../include/f_heap.h"
 
 #define NODE_IN_FHEAP(node) (node->status > OUT_OF_HEAP)
 

@@ -5,7 +5,7 @@
  *      Author: LIU Lu
  */
 #include <stdlib.h>
-#include "mmspa.h"
+#include "../include/mmspa.h"
 
 #define IN_QUEUE     0
 #define OUT_OF_QUEUE 1

@@ -5,7 +5,7 @@
  *      Author: LIU Lu
  */
 
-#include "f_heap.h"
+#include "../include/f_heap.h"
 
 f_heap fh;
 long dg;

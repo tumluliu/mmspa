@@ -8,7 +8,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdlib.h>
-#include "parser.h"
+#include "../include/parser.h"
 
 Graph** graphs = NULL;
 int graphCount = 0;

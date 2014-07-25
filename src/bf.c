@@ -1,4 +1,4 @@
-#include "mmspa.h"
+#include "../include/mmspa.h"
 
 #define VERY_FAR 1073741823
 #define IN_QUEUE     0
