@@ -17,6 +17,7 @@ lib/
 autom4te.cache/
 .libs/
 .deps/
+.ropeproject/
 
 fooltest
 config.cache
