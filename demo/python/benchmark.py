@@ -5,8 +5,9 @@ from pymmspa import PathFinder
 source_list = []
 mode_list = ['underground', 'foot']
 
+
 def do_benchmarking(algorithm):
-    # Timer clock start 
+    # Timer clock start
     for s in source_list:
         if algorithm == 'MMTQ':
             PathFinder.multimodal_twoq(s, mode_list)
@@ -19,5 +20,3 @@ def do_benchmarking(algorithm):
 
 if __name__ == "__main__":
     do_benchmarking(arg1)
-
-
