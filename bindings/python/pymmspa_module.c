@@ -23,40 +23,26 @@ static PyObject *error;
 static PyObject* py_echo_list(PyObject *self, PyObject *args)
 {
     int i = 0;
-    PyObject *tseq, *arg1;
-    char* arg2;
+    PyObject *tseq, *list;
+    char* list_item;
     long t_seqlen=0;
 
-    /* Check if a single argument was passed. We still don't know if it is
-       a list/tuple/iterable. */
+    if (!PyArg_ParseTuple(args, "O", &list)) return NULL;
 
-    if (!PyArg_ParseTuple(args, "O", &arg1)) return NULL;
-
-    tseq = PySequence_Fast(arg1, "argument must be iterable");
+    tseq = PySequence_Fast(list, "argument must be iterable");
     if (!tseq) return NULL;
 
     t_seqlen = PySequence_Fast_GET_SIZE(tseq);
 
     for (i=0; i < t_seqlen; i++)
     {
-        arg2 = PyString_AsString(PySequence_Fast_GET_ITEM(tseq, i));
-        if (!arg2) {
+        list_item = PyString_AsString(PySequence_Fast_GET_ITEM(tseq, i));
+        if (!list_item) {
             PyErr_SetString(PyExc_TypeError, "only strings are supported");
             Py_DECREF(tseq);
             return NULL;
         }
-        /* arg2 is a pointer to a null-terminated array of characters. It is
-           not an array of pointers. So I don't think you should be trying to
-           index it via "i". If you are trying to print just the first
-           character of the string, then you should use:
-
-               printf("%c \n", arg2[0])
-
-           If you are trying to print the entire string, then you should use:
-
-               printf("%s \n", arg2)
-        */
-        printf("%s \n", arg2);
+        printf("%s \n", list_item);
     }
 
     Py_DECREF(tseq);
@@ -75,20 +61,18 @@ static PyObject* py_parse(PyObject* self, PyObject* args) {
  
 static PyObject* py_multimodal_twoq(PyObject* self, PyObject* args) {
     int i = 0;
-    PyObject *tseq, *mode_list;
+    PyObject *tseq, *arg1;
     char *mode, *source;
     long t_seqlen=0;
 
-    printf("Calculating multimodal shortest path with Multimodal TwoQ algorithm. \n");
+    if (!PyArg_ParseTuple(args, "Os", &arg1, &source)) return NULL;
 
-    if (!PyArg_ParseTuple(args, "Os", &mode_list, &source)) return NULL;
-
-    tseq = PySequence_Fast(mode_list, "argument must be iterable");
+    tseq = PySequence_Fast(arg1, "argument must be iterable");
     if (!tseq) return NULL;
 
     t_seqlen = PySequence_Fast_GET_SIZE(tseq);
 
-    printf("Input transportation mode list: \n");
+    const char* mode_list[t_seqlen];
     for (i=0; i < t_seqlen; i++)
     {
         mode = PyString_AsString(PySequence_Fast_GET_ITEM(tseq, i));
@@ -97,19 +81,22 @@ static PyObject* py_multimodal_twoq(PyObject* self, PyObject* args) {
             Py_DECREF(tseq);
             return NULL;
         }
-        printf("%s \n", mode);
+        mode_list[i] = mode;
     }
 
-    printf("Input source of path-finding: \n");
-    printf("%s \n", source);
-
     /* call mmspa MultimodalTwoQ here */
+    MultimodalTwoQ(mode_list, t_seqlen, source);
 
     Py_DECREF(tseq);
     Py_RETURN_NONE;
 }
 
 static PyObject* py_multimodal_bellmanford(PyObject* self, PyObject* args) {
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_dispose(PyObject* self, PyObject* args) {
+    Dispose();
     Py_RETURN_NONE;
 }
 
@@ -129,6 +116,7 @@ static PyMethodDef py_methods[] = {
     {"mm_twoq", py_multimodal_twoq, METH_VARARGS},
     {"mm_dijkstra", py_multimodal_dijkstra, METH_VARARGS},
     {"mm_bellmanford", py_multimodal_bellmanford, METH_VARARGS},
+    {"dispose", py_dispose, METH_VARARGS},
 	{NULL, NULL}
 };
 
