@@ -8,7 +8,7 @@
  * routines for loading data from PostgreSQL database
  */
   
-#include "mmspa4pg.h"
+#include "mmspa4pg/mmspa4pg.h"
  
 PathRecorder*** pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;

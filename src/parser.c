@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "libpq-fe.h"
-#include "parser.h"
+#include "mmspa4pg/parser.h"
 
 Graph** graphs = NULL;
 SwitchPoint*** switchpointsArr = NULL;
