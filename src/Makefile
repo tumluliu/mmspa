@@ -60,10 +60,10 @@ am__make_running_with_option = \
   test $$has_opt = yes
 am__make_dryrun = (target_option=n; $(am__make_running_with_option))
 am__make_keepgoing = (target_option=k; $(am__make_running_with_option))
-pkgdatadir = $(datadir)/mmspa
-pkgincludedir = $(includedir)/mmspa
-pkglibdir = $(libdir)/mmspa
-pkglibexecdir = $(libexecdir)/mmspa
+pkgdatadir = $(datadir)/mmspa4pg
+pkgincludedir = $(includedir)/mmspa4pg
+pkglibdir = $(libdir)/mmspa4pg
+pkglibexecdir = $(libexecdir)/mmspa4pg
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -118,18 +118,17 @@ am__uninstall_files_from_dir = { \
   }
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libmmspa_la_LIBADD =
-am_libmmspa_la_OBJECTS = bf.lo dikf.lo f_heap.lo mmspa.lo \
-	multimodal-bellmanford.lo multimodal-dijkstra-target.lo \
-	multimodal-dijkstra.lo multimodal-twoq.lo parser.lo
-libmmspa_la_OBJECTS = $(am_libmmspa_la_OBJECTS)
+libmmspa4pg_la_LIBADD =
+am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo multimodal-twoq.lo parser.lo
+libmmspa4pg_la_OBJECTS = $(am_libmmspa4pg_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-libmmspa_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libmmspa_la_LDFLAGS) $(LDFLAGS) -o $@
+libmmspa4pg_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(AM_CFLAGS) $(CFLAGS) $(libmmspa4pg_la_LDFLAGS) $(LDFLAGS) -o \
+	$@
 AM_V_P = $(am__v_P_$(V))
 am__v_P_ = $(am__v_P_$(AM_DEFAULT_VERBOSITY))
 am__v_P_0 = false
@@ -164,8 +163,8 @@ AM_V_CCLD = $(am__v_CCLD_$(V))
 am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libmmspa_la_SOURCES)
-DIST_SOURCES = $(libmmspa_la_SOURCES)
+SOURCES = $(libmmspa4pg_la_SOURCES)
+DIST_SOURCES = $(libmmspa4pg_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -239,11 +238,11 @@ OBJDUMP = false
 OBJEXT = o
 OTOOL = otool
 OTOOL64 = :
-PACKAGE = mmspa
+PACKAGE = mmspa4pg
 PACKAGE_BUGREPORT = nudtlliu@gmail.com
-PACKAGE_NAME = mmspa
-PACKAGE_STRING = mmspa 1.0
-PACKAGE_TARNAME = mmspa
+PACKAGE_NAME = mmspa4pg
+PACKAGE_STRING = mmspa4pg 1.0
+PACKAGE_TARNAME = mmspa4pg
 PACKAGE_URL = 
 PACKAGE_VERSION = 1.0
 PATH_SEPARATOR = :
@@ -305,9 +304,9 @@ target_alias =
 top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
-lib_LTLIBRARIES = libmmspa.la
-libmmspa_la_SOURCES = bf.c dikf.c f_heap.c mmspa.c multimodal-bellmanford.c multimodal-dijkstra-target.c multimodal-dijkstra.c multimodal-twoq.c parser.c
-libmmspa_la_LDFLAGS = -version-info 0:0:0
+lib_LTLIBRARIES = libmmspa4pg.la
+libmmspa4pg_la_SOURCES = mmspa4pg.c multimodal-twoq.c parser.c
+libmmspa4pg_la_LDFLAGS = -version-info 0:0:0
 all: all-am
 
 .SUFFIXES:
@@ -378,8 +377,8 @@ clean-libLTLIBRARIES:
 	  rm -f $${locs}; \
 	}
 
-libmmspa.la: $(libmmspa_la_OBJECTS) $(libmmspa_la_DEPENDENCIES) $(EXTRA_libmmspa_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libmmspa_la_LINK) -rpath $(libdir) $(libmmspa_la_OBJECTS) $(libmmspa_la_LIBADD) $(LIBS)
+libmmspa4pg.la: $(libmmspa4pg_la_OBJECTS) $(libmmspa4pg_la_DEPENDENCIES) $(EXTRA_libmmspa4pg_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libmmspa4pg_la_LINK) -rpath $(libdir) $(libmmspa4pg_la_OBJECTS) $(libmmspa4pg_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -387,13 +386,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/bf.Plo
-include ./$(DEPDIR)/dikf.Plo
-include ./$(DEPDIR)/f_heap.Plo
-include ./$(DEPDIR)/mmspa.Plo
-include ./$(DEPDIR)/multimodal-bellmanford.Plo
-include ./$(DEPDIR)/multimodal-dijkstra-target.Plo
-include ./$(DEPDIR)/multimodal-dijkstra.Plo
+include ./$(DEPDIR)/mmspa4pg.Plo
 include ./$(DEPDIR)/multimodal-twoq.Plo
 include ./$(DEPDIR)/parser.Plo
 

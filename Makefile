@@ -59,10 +59,10 @@ am__make_running_with_option = \
   test $$has_opt = yes
 am__make_dryrun = (target_option=n; $(am__make_running_with_option))
 am__make_keepgoing = (target_option=k; $(am__make_running_with_option))
-pkgdatadir = $(datadir)/mmspa
-pkgincludedir = $(includedir)/mmspa
-pkglibdir = $(libdir)/mmspa
-pkglibexecdir = $(libexecdir)/mmspa
+pkgdatadir = $(datadir)/mmspa4pg
+pkgincludedir = $(includedir)/mmspa4pg
+pkglibdir = $(libdir)/mmspa4pg
+pkglibexecdir = $(libexecdir)/mmspa4pg
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -239,11 +239,11 @@ OBJDUMP = false
 OBJEXT = o
 OTOOL = otool
 OTOOL64 = :
-PACKAGE = mmspa
+PACKAGE = mmspa4pg
 PACKAGE_BUGREPORT = nudtlliu@gmail.com
-PACKAGE_NAME = mmspa
-PACKAGE_STRING = mmspa 1.0
-PACKAGE_TARNAME = mmspa
+PACKAGE_NAME = mmspa4pg
+PACKAGE_STRING = mmspa4pg 1.0
+PACKAGE_TARNAME = mmspa4pg
 PACKAGE_URL = 
 PACKAGE_VERSION = 1.0
 PATH_SEPARATOR = :
