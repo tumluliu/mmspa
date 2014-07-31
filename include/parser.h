@@ -11,8 +11,14 @@
 #include <stdio.h>
 #include "types_graph.h"
 
-int Parse(const char* path);
+int ConnectDB(const char* pgConnString);
 
-Vertex* SearchVertexById(Vertex** vertexArray, int arrayLength, const char* id);
+void DisconnectDB();
+
+int Parse();
+
+Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id);
+
+Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, long long id);
 
 #endif /* PARSER_H_ */

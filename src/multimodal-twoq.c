@@ -4,7 +4,7 @@
  *  Created on: May 4, 2009
  *      Author: LIU Lu
  */
-#include "../include/mmspa.h"
+#include "mmspa4pg.h"
 
 /* status of vertex regarding to queue */
 #define UNREACHED   -1
@@ -69,124 +69,139 @@
 extern char* GetSwitchPoint(const char* mode1, const char* mode2);
 extern void DisposeResultPathTable();
 
-void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
-		PathRecorder*** prev);
-void MultimodalTwoQInit(Graph* g, Graph* last_g, const char* spValue,
-		const char* source, Vertex** begin, Vertex** end, Vertex** entry,
-		PathRecorder*** prev);
+void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,	
+				PathRecorder*** prev, const char* costFactor, 
+				VertexValidationChecker checkConstraint);
+void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spListLength, 
+						VertexValidationChecker checkConstraint, 
+						long long source, Vertex** begin, Vertex** end, 
+						Vertex** entry, PathRecorder*** prev, const char* costFactor);
 
-void MultimodalTwoQ(const char** modeList, int modeListLength,
-		const char* source)
+void MultimodalTwoQ(long long source)
 {
 	extern Graph** graphs;
-	extern int graphCount;
+	extern SwitchPoint*** switchpointsArr;
+	extern int* switchpointCounts;
 	extern PathRecorder*** pathRecordTable;
 	extern int* pathRecordCountArray;
 	extern int inputModeCount;
-	int i = 0, j = 0;
-	Graph *workGraph = NULL, *lastGraph = NULL;
+	extern MultimodalRoutingPlan* plan;
+	int i = 0;
 	Vertex *begin = NNULL, *end = NNULL, *entry = NNULL;
 	if (pathRecordTable != NULL)
 		DisposeResultPathTable();
-	pathRecordTable = (PathRecorder***) calloc(modeListLength,
+	pathRecordTable = (PathRecorder***) calloc(plan->mode_count,
 			sizeof(PathRecorder**));
-	pathRecordCountArray = (int*) calloc(modeListLength, sizeof(int));
-	inputModeCount = modeListLength;
-	for (i = 0; i < modeListLength; i++)
+	pathRecordCountArray = (int*) calloc(plan->mode_count, sizeof(int));
+	inputModeCount = plan->mode_count;
+	for (i = 0; i < plan->mode_count; i++)
 	{
-		for (j = 0; j < graphCount; j++)
-		{
-			if (strcmp(modeList[i], graphs[j]->id) == 0)
-			{
-				workGraph = graphs[j];
-				break;
-			}
-		}
-		pathRecordCountArray[i] = workGraph->vertexCount;
+		pathRecordCountArray[i] = graphs[i]->vertex_count;
 		PathRecorder** pathRecordArray = (PathRecorder**) calloc(
 				pathRecordCountArray[i], sizeof(PathRecorder*));
 		if (i == 0)
-			MultimodalTwoQInit(workGraph, lastGraph, "", source, &begin, &end,
-					&entry, &pathRecordArray);
+			MultimodalTwoQInit(graphs[i], NULL, NULL, 0, NULL, source, &begin, &end,
+					&entry, &pathRecordArray, plan->cost_factor);
 		else
-			MultimodalTwoQInit(workGraph, lastGraph, GetSwitchPoint(modeList[i
-					- 1], modeList[i]), source, &begin, &end, &entry,
-					&pathRecordArray);
-		TwoQSearch(workGraph, &begin, &end, &entry, &pathRecordArray);
-		lastGraph = workGraph;
+			MultimodalTwoQInit(graphs[i], graphs[i-1], switchpointsArr[i-1], switchpointCounts[i-1], plan->switch_constraint_list[i-1],
+					source, &begin, &end, &entry, &pathRecordArray, plan->cost_factor);
+		TwoQSearch(graphs[i], &begin, &end, &entry, &pathRecordArray, plan->cost_factor, plan->target_constraint);
 		pathRecordTable[i] = pathRecordArray;
 	}
 }
 
-void MultimodalTwoQInit(Graph* g, Graph* last_g, const char* spValue,
-		const char* source, Vertex** begin, Vertex** end, Vertex** entry,
-		PathRecorder*** prev)
+void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spListLength, 
+						VertexValidationChecker checkConstraint,  
+						long long source, Vertex** begin, Vertex** end, 
+						Vertex** entry, PathRecorder*** prev, const char* costFactor)
 {
 	int i = 0;
-	int v_number = g->vertexCount;
+	int v_number = g->vertex_count;
 	Vertex *src;
-	if (strcmp(spValue, "") == 0)
+	
+	for (i = 0; i < v_number; i++)
 	{
-		for (i = 0; i < v_number; i++)
-		{
-			g->vertices[i]->distance = VERY_FAR;
-			g->vertices[i]->parent = NNULL;
-			g->vertices[i]->status = UNREACHED;
-			PathRecorder *tmpRecorder = (PathRecorder*) malloc(
-					sizeof(PathRecorder));
-			strcpy(tmpRecorder->id, g->vertices[i]->id);
-			tmpRecorder->distance = VERY_FAR;
-			strcpy(tmpRecorder->parent_id, "NNULL");
-			(*prev)[i] = tmpRecorder;
-		}
-		src = SearchVertexById(g->vertices, g->vertexCount, source);
+		g->vertices[i]->temp_cost = VERY_FAR;
+		g->vertices[i]->distance = VERY_FAR;
+		g->vertices[i]->elapsed_time = VERY_FAR;
+		g->vertices[i]->walking_distance = VERY_FAR;
+		g->vertices[i]->walking_time = VERY_FAR;
+		g->vertices[i]->parent = NNULL;
+		g->vertices[i]->status = UNREACHED;
+		g->vertices[i]->next = NNULL;
+		PathRecorder *tmpRecorder = (PathRecorder*) malloc(
+				sizeof(PathRecorder));
+		tmpRecorder->vertex_id = g->vertices[i]->id;
+//		tmpRecorder->cost = VERY_FAR;
+		tmpRecorder->parent_vertex_id = -1 * VERY_FAR;
+		(*prev)[i] = tmpRecorder;
+	}
+	
+	(*entry) = NNULL;
+	if (spList == NULL)
+	{
+		src = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, source);
 		// INIT_QUEUE(src)
+		src->temp_cost = 0;
 		src->distance = 0;
+		src->elapsed_time = 0;
+		src->walking_distance = 0;
+		src->walking_time = 0;
 		src->parent = src;
-		*begin = *end = src;
-		*entry = NNULL;
+		(*begin) = (*end) = src;
 		src->next = NNULL;
 		src->status = IN_QUEUE;
 	}
 	else
 	{
-		for (i = 0; i < v_number; i++)
-		{
-			PathRecorder *tmpRecorder = (PathRecorder*) malloc(
-					sizeof(PathRecorder));
-			strcpy(tmpRecorder->id, g->vertices[i]->id);
-			tmpRecorder->distance = VERY_FAR;
-			strcpy(tmpRecorder->parent_id, "NNULL");
-			(*prev)[i] = tmpRecorder;
-			if (strcmp(g->vertices[i]->attr_amenity, spValue) != 0)
+		/* relax every switch point pairs (i.e. switch edges) */
+		(*begin) = (*end) = NNULL;
+		double costNew;
+		for (i = 0; i < spListLength; i++)
+		{			
+			Vertex* switchFrom = BinarySearchVertexById(last_g->vertices,
+						0, last_g->vertex_count - 1, spList[i]->from_vertex_id);
+			Vertex* switchTo = BinarySearchVertexById(g->vertices,
+						0, g->vertex_count - 1, spList[i]->to_vertex_id);
+			if (switchFrom != NNULL && switchTo != NNULL)
 			{
-				g->vertices[i]->distance = VERY_FAR;
-				g->vertices[i]->parent = NNULL;
-				g->vertices[i]->status = UNREACHED;
-			}
-			else
-			{
-				Vertex *switch_point = SearchVertexById(last_g->vertices,
-						last_g->vertexCount, g->vertices[i]->id);
-				if (switch_point != NNULL)
+				//printf("processing switch point pairs: %lld, %lld \n", switchFrom->id, switchTo->id);
+				if (checkConstraint != NULL)
 				{
-					g->vertices[i]->distance = switch_point->distance;
-					g->vertices[i]->parent = g->vertices[i];
-					/* enqueue switch points */
-					// INSERT_TO_BACK(g->vertices[i])
-					if ((*begin) == NNULL)
-						*begin = g->vertices[i];
-					else
-						(*end)->next = g->vertices[i];
-					(*end) = g->vertices[i];
-					(*end)->next = NNULL;
-					g->vertices[i]->status = IN_QUEUE;
+					//printf("checking from switch point %lld with temp distance = %f ... ", switchFrom->id, switchFrom->distance);
+					if (checkConstraint(switchFrom) != 0)
+					{
+						//printf("invalid \n");
+						continue;
+					}
+					//printf("valid \n ");
 				}
-				else
+				if (strcmp(costFactor, "speed") == 0)
+					costNew = switchFrom->temp_cost + (spList[i]->length * spList[i]->speed_factor);
+				else if (strcmp(costFactor, "length") == 0)
+					costNew = switchFrom->temp_cost + (spList[i]->length * spList[i]->length_factor);
+				else /*default case: use speed factor*/
+					costNew = switchFrom->temp_cost + (spList[i]->length * spList[i]->speed_factor);
+				if (costNew < switchTo->temp_cost)
 				{
-					g->vertices[i]->distance = VERY_FAR;
-					g->vertices[i]->parent = NNULL;
-					g->vertices[i]->status = UNREACHED;
+					switchTo->temp_cost = costNew;
+					switchTo->parent = switchTo;
+					switchTo->distance = switchFrom->distance + (spList[i]->length * spList[i]->length_factor);
+					switchTo->elapsed_time = switchFrom->elapsed_time + (spList[i]->length * spList[i]->speed_factor);
+					switchTo->walking_distance = switchFrom->walking_distance + (spList[i]->length * spList[i]->length_factor);
+					switchTo->walking_time = switchFrom->walking_time + (spList[i]->length * spList[i]->speed_factor);
+					/* enqueue switch points */
+					// INSERT_TO_BACK(switchTo)
+					if (switchTo->status != IN_QUEUE)
+					{
+						if ((*begin) == NNULL)
+							*begin = switchTo;
+						else
+							(*end)->next = switchTo;
+						(*end) = switchTo;
+						(*end)->next = NNULL;
+						switchTo->status = IN_QUEUE;
+					}
 				}
 			}
 		}
@@ -194,36 +209,60 @@ void MultimodalTwoQInit(Graph* g, Graph* last_g, const char* spValue,
 }
 
 void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
-		PathRecorder*** prev)
+		PathRecorder*** prev, const char* costFactor, VertexValidationChecker checkConstraint)
 {
-	long distanceNew, distanceFrom;
+	double costNew;
 	Vertex *vertexFrom, *vertexTo;
 	Edge *edge_ij;
-	int edgeCount = 0, edgeIndex = 0, i = 0, vertexCount = 0;
+	int edgeCount = 0, i = 0, vertexCount = 0;
 
 	while ((*begin) != NNULL)
 	{
 		// EXTRACT_FIRST(vertexFrom)
 		vertexFrom = *begin;
+		//printf("extract first vertex %lld in the queue \n", vertexFrom->id);
 		vertexFrom->status = WAS_IN_QUEUE;
 		if ((*begin) == (*entry))
 			*entry = NNULL;
 		*begin = (*begin)->next;
-
-		edgeCount = vertexFrom->outdegree;
-		distanceFrom = vertexFrom->distance;
-		edgeIndex = vertexFrom->first;
-
-		for (i = 0; i < edgeCount; i++)
-		{ /*scanning edges outgoing from vertexFrom*/
-			edge_ij = g->edges[edgeIndex];
-			edgeIndex++;
-			vertexTo = edge_ij->end;
-			distanceNew = distanceFrom + (edge_ij->cost);
-			if (distanceNew < vertexTo->distance)
+		if (checkConstraint != NULL)
+		{
+			//printf("checking constraint on %lld with temp distance = %f ... ", vertexFrom->id, vertexFrom->distance);
+			if (checkConstraint(vertexFrom) != 0)
 			{
-				vertexTo->distance = distanceNew;
+				//printf("invalid \n");
+				continue;
+			}
+			//printf("valid \n");
+		}
+		edgeCount = vertexFrom->outdegree;
+		edge_ij = vertexFrom->outgoing;
+		while (edge_ij != NULL)
+		{ 
+			/* scanning edges outgoing from vertexFrom*/
+			vertexTo = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, edge_ij->to_vertex_id);
+			if (strcmp(costFactor, "speed") == 0)
+				costNew = vertexFrom->temp_cost + (edge_ij->length * edge_ij->speed_factor);
+			else if (strcmp(costFactor, "length") == 0)
+				costNew = vertexFrom->temp_cost + (edge_ij->length * edge_ij->length_factor);
+			else /*default case: use speed factor*/
+				costNew = vertexFrom->temp_cost + (edge_ij->length * edge_ij->speed_factor);
+			if (costNew < vertexTo->temp_cost)
+			{
+				vertexTo->temp_cost = costNew;
 				vertexTo->parent = vertexFrom;
+				vertexTo->distance = vertexFrom->distance + (edge_ij->length * edge_ij->length_factor);
+				vertexTo->elapsed_time = vertexFrom->elapsed_time + (edge_ij->length * edge_ij->speed_factor);
+				if (edge_ij->mode_id == 1002)
+				{
+					vertexTo->walking_distance = vertexFrom->walking_distance + (edge_ij->length * edge_ij->length_factor);
+					vertexTo->walking_time = vertexFrom->walking_time + (edge_ij->length * edge_ij->speed_factor);
+				}
+				else
+				{
+					vertexTo->walking_distance = vertexFrom->walking_distance;
+					vertexTo->walking_time = vertexFrom->walking_time;
+				}
 				if (!vertexTo->status == IN_QUEUE)
 				{
 					if (vertexTo->status == WAS_IN_QUEUE)
@@ -259,19 +298,20 @@ void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
 						vertexTo->status = IN_QUEUE;
 					}
 				}
-			} /* end of scanning  vertex_from */
-		} /* end of the main loop */
-	}
+			}
+			edge_ij = edge_ij->adjNext;
+		} /* end of scanning vertexFrom */
+	} /* end of the main loop */
 
-	vertexCount = g->vertexCount;
+	vertexCount = g->vertex_count;
 	for (i = 0; i < vertexCount; i++)
 	{
-		strcpy((*prev)[i]->id, g->vertices[i]->id);
+		(*prev)[i]->vertex_id = g->vertices[i]->id;
 		if (g->vertices[i]->parent == NNULL)
-			strcpy((*prev)[i]->parent_id, "NNULL");
+			(*prev)[i]->parent_vertex_id = -1 * VERY_FAR;
 		else
-			strcpy((*prev)[i]->parent_id, g->vertices[i]->parent->id);
-		(*prev)[i]->distance = g->vertices[i]->distance;
+			(*prev)[i]->parent_vertex_id = g->vertices[i]->parent->id;
+//		(*prev)[i]->cost = g->vertices[i]->distance;
 	}
 }
 
