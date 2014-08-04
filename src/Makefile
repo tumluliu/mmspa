@@ -82,7 +82,10 @@ subdir = src
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -118,7 +121,7 @@ am__uninstall_files_from_dir = { \
   }
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libmmspa4pg_la_LIBADD =
+libmmspa4pg_la_DEPENDENCIES =
 am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo multimodal-twoq.lo parser.lo
 libmmspa4pg_la_OBJECTS = $(am_libmmspa4pg_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
@@ -200,7 +203,7 @@ AUTOMAKE = ${SHELL} /Users/user/Projects/mmspa/missing automake-1.14
 AWK = awk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O0
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -222,9 +225,9 @@ INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
-LDFLAGS = 
+LDFLAGS =  -L/usr/local/lib
 LIBOBJS = 
-LIBS = 
+LIBS = -lpq 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = lipo
 LN_S = ln -s
@@ -306,7 +309,8 @@ top_builddir = ..
 top_srcdir = ..
 lib_LTLIBRARIES = libmmspa4pg.la
 libmmspa4pg_la_SOURCES = mmspa4pg.c multimodal-twoq.c parser.c
-libmmspa4pg_la_LDFLAGS = -version-info 0:0:0
+libmmspa4pg_la_LDFLAGS = -version-info 1:0:0
+libmmspa4pg_la_LIBADD = -lpq
 all: all-am
 
 .SUFFIXES:
