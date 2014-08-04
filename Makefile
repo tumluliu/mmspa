@@ -83,7 +83,10 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/config.h.in ar-lib compile config.guess config.sub \
 	depcomp install-sh missing ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -201,7 +204,7 @@ AUTOMAKE = ${SHELL} /Users/user/Projects/mmspa/missing automake-1.14
 AWK = awk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O0
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -223,9 +226,9 @@ INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
-LDFLAGS = 
+LDFLAGS =  -L/usr/local/lib
 LIBOBJS = 
-LIBS = 
+LIBS = -lpq 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = lipo
 LN_S = ln -s
@@ -306,6 +309,7 @@ top_build_prefix =
 top_builddir = .
 top_srcdir = .
 SUBDIRS = src
+ACLOCAL_AMFLAGS = -I m4
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
