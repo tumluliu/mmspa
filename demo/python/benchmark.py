@@ -40,7 +40,9 @@ def do_benchmarking(sources, targets, options):
         exit()
     t2 = time.time()
     print colored("done!", "green")
-    print "Time consumed: " + str(t2 - t1) + " seconds"
+    print "Time consumed: ",
+    print colored(str(t2 - t1), "red"),
+    print " seconds"
     print "Test for randomly selected " + str(len(sources)) + " source vertices"
     print "Routing plan: by underground trains"
     print "Start benchmarking multimodal path calculation by MultimodalTwoQ... ",
@@ -49,11 +51,13 @@ def do_benchmarking(sources, targets, options):
         multimodal_twoq(long(s))
     t2 = time.time()
     print colored("done!", "green")
-    print "Average calculation time: " + str((t2 - t1) / len(sources)) + " seconds"
+    print "Average calculation time: ",
+    print colored(str((t2 - t1) / len(sources)), "red"),
+    print " seconds"
     print "Post processing... ",
     dispose()
     print colored("done!", "green")
-    print "Disconnect database... ",
+    print "Disconnecting database... ",
     disconnect_db()
     print colored("done!", "green")
 
