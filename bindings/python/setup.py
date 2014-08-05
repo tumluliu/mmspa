@@ -1,14 +1,14 @@
 from distutils.core import setup, Extension
 
-PYMMSPA_MODULE = Extension('pymmspa',
+PYMMSPA4PG_MODULE = Extension('pymmspa4pg',
                            include_dirs=['/usr/local/include'],
-                           libraries=['mmspa'],
+                           libraries=['mmspa4pg'],
                            library_dirs=['/usr/local/lib'],
-                           sources=['pymmspa_module.c'])
+                           sources=['pymmspa4pg_module.c'])
 
-setup(name='pymmspa',
+setup(name='pymmspa4pg',
       version='0.1',
       description='Python binding of multimodal shortest path algorithms',
       author='Lu LIU',
       author_email='nudtlliu@gmail.com',
-      ext_modules=[PYMMSPA_MODULE])
+      ext_modules=[PYMMSPA4PG_MODULE])

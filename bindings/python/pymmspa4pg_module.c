@@ -22,9 +22,10 @@ static PyObject *error;
 
 static PyObject* py_connect_db(PyObject* self, PyObject* args) {
     char* conn_info;
+    int result;
     if (!PyArg_ParseTuple(args, "s", &conn_info)) return NULL;
-    ConnectDB(conn_info);
-    Py_RETURN_NONE;
+    result = ConnectDB(conn_info);
+    return Py_BuildValue("i", result);
 }
 
 static PyObject* py_disconnect_db(PyObject* self, PyObject* args) {
@@ -32,7 +33,7 @@ static PyObject* py_disconnect_db(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* py_create_routingplan(PyObject* self, PyObject* args) {
+static PyObject* py_create_routing_plan(PyObject* self, PyObject* args) {
     int mode_count, public_mode_count;
     if (!PyArg_ParseTuple(args, "ii", &mode_count, &public_mode_count)) 
         return NULL;
@@ -63,20 +64,22 @@ static PyObject* py_set_switch_condition(PyObject* self, PyObject* args) {
 }
 
 static PyObject* py_set_switching_constraint(PyObject* self, PyObject* args) {
-    /* todo: 
-     * parse the callback type parameter */
     int index;
-    void* callback;
-    if (!PyArg_ParseTuple(args, "is", &index, &callback)) return NULL;
+    VertexValidationChecker callback;
+    /* I am so not sure if the parameter format string "O" is 
+     * properly in this context 
+     * by LIU Lu*/
+    if (!PyArg_ParseTuple(args, "iO", &index, &callback)) return NULL;
     SetSwitchingConstraint(index, callback);
     Py_RETURN_NONE;
 }
 
 static PyObject* py_set_target_constraint(PyObject* self, PyObject* args) {
-    /* todo: 
-     * parse the callback type parameter */
-    void* callback;
-    if (!PyArg_ParseTuple(args, "i", &callback)) return NULL;
+    VertexValidationChecker callback = NULL;
+    /* I am so not sure if the parameter format string "O" is 
+     * properly in this context 
+     * by LIU Lu*/
+    if (!PyArg_ParseTuple(args, "O", &callback)) return NULL;
     SetTargetConstraint(callback);
     Py_RETURN_NONE;
 }
@@ -118,15 +121,15 @@ static PyObject* py_multimodal_twoq(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* py_dispose(PyObject* self, PyObject* args) {
-    Dispose();
+static PyObject* py_dispose_paths(PyObject* self, PyObject* args) {
+    Path** paths;
+    if (!PyArg_ParseTuple(args, "O", &paths)) return NULL;
+    DisposePaths(paths);
     Py_RETURN_NONE;
 }
 
-static PyObject* py_multimodal_dijkstra(PyObject* self, PyObject* args) {
-    const char** mode_list;
-    int mode_count;
-    const char* source;
+static PyObject* py_dispose(PyObject* self, PyObject* args) {
+    Dispose();
     Py_RETURN_NONE;
 }
 
@@ -134,11 +137,20 @@ static PyObject* py_multimodal_dijkstra(PyObject* self, PyObject* args) {
  * Bind Python function names to our C functions
  */
 static PyMethodDef py_methods[] = {
-    {"echo_list", py_echo_list, METH_VARARGS},
+    {"connect_db", py_connect_db, METH_VARARGS},
+    {"disconnect_db", py_disconnect_db, METH_VARARGS},
+    {"create_routing_plan", py_create_routing_plan, METH_VARARGS},
+    {"set_mode", py_set_mode, METH_VARARGS},
+    {"set_public_transit_mode", py_set_public_transit_mode, METH_VARARGS},
+    {"set_switch_condition", py_set_switch_condition, METH_VARARGS},
+    {"set_switching_constraint", py_set_switching_constraint, METH_VARARGS},
+    {"set_target_constraint", py_set_target_constraint, METH_VARARGS},
+    {"set_cost_factor", py_set_cost_factor, METH_VARARGS},
+    {"get_final_path", py_get_final_path, METH_VARARGS},
+    {"get_final_cost", py_get_final_cost, METH_VARARGS},
     {"parse", py_parse, METH_VARARGS},
-    {"mm_twoq", py_multimodal_twoq, METH_VARARGS},
-    {"mm_dijkstra", py_multimodal_dijkstra, METH_VARARGS},
-    {"mm_bellmanford", py_multimodal_bellmanford, METH_VARARGS},
+    {"multimodal_twoq", py_multimodal_twoq, METH_VARARGS},
+    {"dispose_paths", py_dispose_paths, METH_VARARGS},
     {"dispose", py_dispose, METH_VARARGS},
 	{NULL, NULL}
 };
@@ -146,13 +158,13 @@ static PyMethodDef py_methods[] = {
 /*
  * Python calls this to let us initialize our module
  */
-PyMODINIT_FUNC initpymmspa(void) {
+PyMODINIT_FUNC initpymmspa4pg(void) {
     PyObject *m;
 
-    m = Py_InitModule("pymmspa", py_methods);
+    m = Py_InitModule("pymmspa4pg", py_methods);
     if (m == NULL) return;
 
-    error = PyErr_NewException("pymmspa.error", NULL, NULL);
+    error = PyErr_NewException("pymmspa4pg.error", NULL, NULL);
     Py_INCREF(error);
     PyModule_AddObject(m, "error", error);
 }
