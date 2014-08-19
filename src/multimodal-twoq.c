@@ -87,6 +87,8 @@ void MultimodalTwoQ(long long source)
 	extern int inputModeCount;
 	extern MultimodalRoutingPlan* plan;
 	int i = 0;
+	//printf("[DEBUG] start MultimodalTwoQ in libmmspa4pg. \n");
+	//printf("[DEBUG] preparing result path data structures. \n");
 	Vertex *begin = NNULL, *end = NNULL, *entry = NNULL;
 	if (pathRecordTable != NULL)
 		DisposeResultPathTable();
@@ -99,12 +101,15 @@ void MultimodalTwoQ(long long source)
 		pathRecordCountArray[i] = graphs[i]->vertex_count;
 		PathRecorder** pathRecordArray = (PathRecorder**) calloc(
 				pathRecordCountArray[i], sizeof(PathRecorder*));
+	    //printf("[DEBUG] start doing MultimodalTwoQInit... \n");
 		if (i == 0)
 			MultimodalTwoQInit(graphs[i], NULL, NULL, 0, NULL, source, &begin, &end,
 					&entry, &pathRecordArray, plan->cost_factor);
 		else
 			MultimodalTwoQInit(graphs[i], graphs[i-1], switchpointsArr[i-1], switchpointCounts[i-1], plan->switch_constraint_list[i-1],
 					source, &begin, &end, &entry, &pathRecordArray, plan->cost_factor);
+	    //printf("[DEBUG] done! \n");
+	    //printf("[DEBUG] start doing TwoQSearch... \n");
 		TwoQSearch(graphs[i], &begin, &end, &entry, &pathRecordArray, plan->cost_factor, plan->target_constraint);
 		pathRecordTable[i] = pathRecordArray;
 	}
@@ -119,8 +124,12 @@ void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spLis
 	int v_number = g->vertex_count;
 	Vertex *src;
 	
+	//printf("[DEBUG] MultimodalTwoQInit started. \n");
+	//printf("[DEBUG] traversely init vertices... \n");
+	//printf("[DEBUG] number of vertices: %d \n", v_number);
 	for (i = 0; i < v_number; i++)
 	{
+	    //printf("[DEBUG] init vertex: %lld, %d/%d\n", g->vertices[i]->id, i, v_number);
 		g->vertices[i]->temp_cost = VERY_FAR;
 		g->vertices[i]->distance = VERY_FAR;
 		g->vertices[i]->elapsed_time = VERY_FAR;
@@ -136,11 +145,15 @@ void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spLis
 		tmpRecorder->parent_vertex_id = -1 * VERY_FAR;
 		(*prev)[i] = tmpRecorder;
 	}
+	//printf("[DEBUG] done.\n");
 	
+	//printf("[DEBUG] start processing switch point list...\n");
 	(*entry) = NNULL;
 	if (spList == NULL)
 	{
+	    //printf("[DEBUG] no switch points input.\n");
 		src = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, source);
+		//printf("[DEBUG] init source vertex\n");
 		// INIT_QUEUE(src)
 		src->temp_cost = 0;
 		src->distance = 0;
@@ -151,10 +164,12 @@ void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spLis
 		(*begin) = (*end) = src;
 		src->next = NNULL;
 		src->status = IN_QUEUE;
+	    //printf("[DEBUG] done.\n");
 	}
 	else
 	{
 		/* relax every switch point pairs (i.e. switch edges) */
+	    //printf("[DEBUG] number of switch points: %d.\n", spListLength);
 		(*begin) = (*end) = NNULL;
 		double costNew;
 		for (i = 0; i < spListLength; i++)
@@ -205,7 +220,9 @@ void MultimodalTwoQInit(Graph* g, Graph* last_g, SwitchPoint** spList, int spLis
 				}
 			}
 		}
+		//printf("[DEBUG] done!\n");
 	}
+	//printf("[DEBUG] MultimodalTwoQInit finished. \n");
 }
 
 void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
@@ -216,6 +233,7 @@ void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
 	Edge *edge_ij;
 	int edgeCount = 0, i = 0, vertexCount = 0;
 
+	//printf("[DEBUG] TwoQSearch started. \n");
 	while ((*begin) != NNULL)
 	{
 		// EXTRACT_FIRST(vertexFrom)
@@ -313,5 +331,6 @@ void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
 			(*prev)[i]->parent_vertex_id = g->vertices[i]->parent->id;
 //		(*prev)[i]->cost = g->vertices[i]->distance;
 	}
+	//printf("[DEBUG] TwoQSearch finished. \n");
 }
 
