@@ -100,8 +100,12 @@ int main(void)
 	printf("Calculating multimodal routes...\n");
 	printf("Test times: 50\n");
 	gettimeofday(&start_time, NULL);
-	for (int i = 0; i < 50; i++)
-		MultimodalTwoQ(atoll(testSources[i]));
+	MultimodalTwoQ(100201006726);
+	double final_cost = 0.0;
+	final_cost = GetFinalCost(100201006499, "distance");
+	printf("Final cost is: %f\n", final_cost);
+//	for (int i = 0; i < 50; i++)
+//		MultimodalTwoQ(atoll(testSources[i]));
 	gettimeofday(&finish_time, NULL);
 	averageTime = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000 / 50;
 	printf(

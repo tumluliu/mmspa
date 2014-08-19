@@ -28,10 +28,13 @@ def do_benchmarking(sources, targets, options):
         exit()
     print colored("done!", "green")
     print "Preparing routing plan... ",
-    create_routing_plan(1, 1)
-    set_mode(0, 1900)
-    set_public_transit_mode(0, 1003)
+    #create_routing_plan(1, 1)
+    create_routing_plan(1, 0)
+    #set_mode(0, 1900)
+    set_mode(0, 1002)
+    #set_public_transit_mode(0, 1003)
     set_cost_factor("speed")
+    set_target_constraint(None)
     print colored("done!", "green")
     print "Loading multimodal transportation networks in Munich... ",
     t1 = time.time()
@@ -44,7 +47,8 @@ def do_benchmarking(sources, targets, options):
     print colored(str(t2 - t1), "red"),
     print " seconds"
     print "Test for randomly selected " + str(len(sources)) + " source vertices"
-    print "Routing plan: by underground trains"
+    print "Routing plan: by foot"
+    #print "Routing plan: by underground trains"
     print "Start benchmarking multimodal path calculation by MultimodalTwoQ... ",
     t1 = time.time()
     for s in sources:
