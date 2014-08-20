@@ -26,6 +26,8 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpo
 
 int InitializeGraphs(int graphCount);
 
+int ValidateGraph(Graph* g);
+
 static void exit_nicely(PGconn *conn)
 {
     PQfinish(conn);
@@ -188,6 +190,8 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		
 		tmpGraph->vertices = vertices;
 		tmpGraph->vertex_count = vertexCount;
+		if (ValidateGraph(tmpGraph) == EXIT_FAILURE)
+		    return EXIT_FAILURE;
 		graphs[i] = tmpGraph;
 		if (i > 0)
 		{
@@ -398,4 +402,46 @@ Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, long lon
 		return BinarySearchVertexById(vertexArray, mid + 1, high, id);
 	else
 		return vertexArray[mid];
+}
+
+// Check if the constructed graph has dirty data
+int ValidateGraph(Graph* g)
+{
+    for (int i = 0; i < g->vertex_count; i++) {
+        if (g->vertices[i] == NNULL) {
+            // found a NULL vertex
+            printf("FATAL: NULL vertex found in graph, seq number is %d, previous vertex id is %lld", i, g->vertices[i-1]->id);
+            return EXIT_FAILURE;
+        }
+        int claimed_outdegree = g->vertices[i]->outdegree;
+        int real_outdegree = 0;
+        if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
+            // outgoing edges are not NULL while outdegree is 0
+            printf("FATAL: bad vertex structure found! Outdegree is 0 while outgoing is not NULL. Problematic vertex id is %lld", g->vertices[i]->id);
+            return EXIT_FAILURE;
+        }
+        if (claimed_outdegree >= 1) {
+            if (g->vertices[i]->outgoing == NULL) {
+                // outgoing edge is NULL while outdegree is larger than 0
+                printf("FATAL: bad vertex structure found! Outdegree > 1 while outgoing is NULL. Problematic vertex id is %lld", g->vertices[i]->id);
+                return EXIT_FAILURE;
+            }
+            Edge* pEdge = g->vertices[i]->outgoing;
+            while (pEdge != NULL) {
+                if (pEdge->from_vertex_id != g->vertices[i]->id) {
+                    // found foreign edges not emitted from the current vertex
+                    printf("FATAL: bad vertex structure found! Found an outgoing edge NOT belonging to this vertex. Problematic vertex id is %lld", g->vertices[i]->id);
+                    return EXIT_FAILURE;
+                }
+                real_outdegree++;
+                pEdge = pEdge->adjNext;
+            }
+            if (real_outdegree != claimed_outdegree) {
+                // real outdegree calculated by counting the outgoing edges is not equal to the recorded outdegree
+                printf("FATAL: bad vertex structure found! Number of outgoing edges is NOT equal to the outdegree it claims. Problematic vertex id is %lld", g->vertices[i]->id);
+                return EXIT_FAILURE;
+            }
+        }
+    }
+    return EXIT_SUCCESS;
 }
