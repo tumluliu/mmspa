@@ -26,17 +26,9 @@ config.h
 config.intl
 config.log
 config.status
-config.h.in
-config.guess
-config.sub
-libtool
 ar-lib
 compile
 configure.scan
 depcomp
-install-sh
-libtool
-ltmain.sh
-Makefile.in
 missing
 stamp-h1
