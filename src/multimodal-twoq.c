@@ -271,7 +271,7 @@ void TwoQSearch(Graph* g, Vertex** begin, Vertex** end, Vertex** entry,
 				vertexTo->parent = vertexFrom;
 				vertexTo->distance = vertexFrom->distance + (edge_ij->length * edge_ij->length_factor);
 				vertexTo->elapsed_time = vertexFrom->elapsed_time + (edge_ij->length * edge_ij->speed_factor);
-				if (edge_ij->mode_id == 1002)
+				if (edge_ij->mode_id == WALKING_MODE_ID)
 				{
 					vertexTo->walking_distance = vertexFrom->walking_distance + (edge_ij->length * edge_ij->length_factor);
 					vertexTo->walking_time = vertexFrom->walking_time + (edge_ij->length * edge_ij->speed_factor);

@@ -10,6 +10,7 @@
 #include "libpq-fe.h"
 #include "mmspa4pg/parser.h"
 
+
 Graph** graphs = NULL;
 SwitchPoint*** switchpointsArr = NULL;
 int* switchpointCounts = NULL;
@@ -54,6 +55,7 @@ int Parse()
 {
 	extern MultimodalRoutingPlan* plan;	
 	
+	/*printf("[DEBUG] init multimodal graphs\n");*/
 	if (InitializeGraphs(plan->mode_count) == EXIT_FAILURE)
 	{
 		printf("initialization of graphs failed\n");
@@ -74,12 +76,12 @@ int Parse()
 		Graph* tmpGraph;
 		tmpGraph = (Graph*) malloc(sizeof(Graph));
 		tmpGraph->id = modeId;
-		if (modeId == 1900)
+		if (modeId == PUBLIC_TRANSPORT_MODE_ID)
 		{
 			// construct query clause for foot and all the selected public transit modes;
 			int j = 0;
 			char publicModesClause[256];
-			sprintf(publicModesClause, "vertices.mode_id = 1002 OR vertices.mode_id = %d", plan->public_transit_mode_id_set[0]);
+			sprintf(publicModesClause, "vertices.mode_id = %d OR vertices.mode_id = %d", WALKING_MODE_ID, plan->public_transit_mode_id_set[0]);
 			for (j = 1; j < plan->public_transit_mode_count; j++)
 			{
 				int publicModeId = plan->public_transit_mode_id_set[j];
@@ -124,6 +126,7 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 	        exit_nicely(conn);
 	    }
 		vertexCount = atoi(PQgetvalue(vertexResults, 0, 0));
+		/*printf("[DEBUG] found vertex %d\n", vertexCount);*/
 		PQclear(vertexResults);
 
 		// Retrieve and read graph
@@ -135,28 +138,31 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 	        PQclear(graphResults);
 	        exit_nicely(conn);
 	    }
+		/*printf("[DEBUG] reading graphs...\n");*/
 		ReadGraph(graphResults, &vertices, vertexCount, plan->cost_factor);
+		/*printf("[DEBUG] done!\n");*/
 		PQclear(graphResults);
 		
 		// Combine all the selected public transit modes and foot networks
-		// if current mode_id is 1900
-		if (modeId == 1900)
+		// if current mode_id is PUBLIC_TRANSPORT_MODE_ID
+		if (modeId == PUBLIC_TRANSPORT_MODE_ID)
 		{
 			// read switch points between all the PT mode pairs 
 			int j = 0, k = 0;
 			char publicSwitchClause[1024];
 			sprintf(publicSwitchClause, 
-				" ((from_mode_id = 1002 AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = 1002))", 
-				plan->public_transit_mode_id_set[0], plan->public_transit_mode_id_set[0]);
+				" ((from_mode_id = %d AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = %d))", 
+				WALKING_MODE_ID, plan->public_transit_mode_id_set[0], 
+				plan->public_transit_mode_id_set[0], WALKING_MODE_ID);
 			for (j = 1; j < plan->public_transit_mode_count; j++)
 			{
 				int publicModeId = plan->public_transit_mode_id_set[j];					
 				char strPublcSwitchSeg[128];
 				sprintf(strPublcSwitchSeg, 
-					" OR ((from_mode_id = 1002 AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = 1002))", 
-					publicModeId, publicModeId);
+					" OR ((from_mode_id = %d AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = %d))", 
+					WALKING_MODE_ID, publicModeId, publicModeId, WALKING_MODE_ID);
 				strcat(publicSwitchClause, strPublcSwitchSeg);
-				// Retrieve switch point infos between (1002, j)
+				// Retrieve switch point infos between (WALKING_MODE_ID, j)
 			}
 			for (j = 0; j < plan->public_transit_mode_count - 1; j++)
 				for (k = j + 1; k < plan->public_transit_mode_count; k++) 
@@ -184,7 +190,7 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		    publicSwitchpointCount = PQntuples(switchpointResults);
 			ReadSwitchPoints(switchpointResults, &publicSwitchpoints);
 			PQclear(switchpointResults);
-			// combine the graphs by adding switch lines in the (vertices, edges) set and get the mode 1900 graph
+			// combine the graphs by adding switch lines in the (vertices, edges) set and get the mode PUBLIC_TRANSPORT_MODE_ID graph
 			CombineGraphs(vertices, vertexCount, publicSwitchpoints, publicSwitchpointCount);
 		}
 		
@@ -196,13 +202,13 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		if (i > 0)
 		{
 			int j = 0;
-			if ((plan->mode_id_list[i-1] != 1900) && (plan->mode_id_list[i] != 1900))
+			if ((plan->mode_id_list[i-1] != PUBLIC_TRANSPORT_MODE_ID) && (plan->mode_id_list[i] != PUBLIC_TRANSPORT_MODE_ID))
 				sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE from_mode_id=%d AND to_mode_id=%d AND %s", 
 					plan->mode_id_list[i-1], plan->mode_id_list[i], plan->switch_condition_list[i-1]);
-			else if (plan->mode_id_list[i-1] == 1900)
+			else if (plan->mode_id_list[i-1] == PUBLIC_TRANSPORT_MODE_ID)
 			{
 				char strFromModeClause[256];
-				sprintf(strFromModeClause, "from_mode_id = 1002 ");
+				sprintf(strFromModeClause, "from_mode_id = %d ", WALKING_MODE_ID);
 				for (j = 0; j < plan->public_transit_mode_count; j++)
 				{
 					int publicModeId = plan->public_transit_mode_id_set[j];
@@ -213,10 +219,10 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 				sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE (%s) AND to_mode_id=%d AND %s", 
 					strFromModeClause, plan->mode_id_list[i], plan->switch_condition_list[i-1]);
 			}
-			else if (plan->mode_id_list[i] == 1900)
+			else if (plan->mode_id_list[i] == PUBLIC_TRANSPORT_MODE_ID)
 			{
 				char strToModeClause[256];
-				sprintf(strToModeClause, "to_mode_id = 1002 ");
+				sprintf(strToModeClause, "to_mode_id = %d ", WALKING_MODE_ID);
 				for (j = 0; j < plan->public_transit_mode_count; j++)
 				{
 					int publicModeId = plan->public_transit_mode_id_set[j];
@@ -367,7 +373,7 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpo
 			outgoingEdge->adjNext = tmpEdge;
 		}
 		vertexFrom->outdegree++;
-		tmpEdge->mode_id = 1002;
+		tmpEdge->mode_id = WALKING_MODE_ID;
 		tmpEdge->adjNext = NULL;
 		/* edge length */
 		tmpEdge->length = switchpointArray[i]->length;
@@ -410,27 +416,27 @@ int ValidateGraph(Graph* g)
     for (int i = 0; i < g->vertex_count; i++) {
         if (g->vertices[i] == NNULL) {
             // found a NULL vertex
-            printf("FATAL: NULL vertex found in graph, seq number is %d, previous vertex id is %lld", i, g->vertices[i-1]->id);
+            printf("FATAL: NULL vertex found in graph, seq number is %d, previous vertex id is %lld\n", i, g->vertices[i-1]->id);
             return EXIT_FAILURE;
         }
         int claimed_outdegree = g->vertices[i]->outdegree;
         int real_outdegree = 0;
         if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
             // outgoing edges are not NULL while outdegree is 0
-            printf("FATAL: bad vertex structure found! Outdegree is 0 while outgoing is not NULL. Problematic vertex id is %lld", g->vertices[i]->id);
+            printf("FATAL: bad vertex structure found! Outdegree is 0 while outgoing is not NULL. Problematic vertex id is %lld\n", g->vertices[i]->id);
             return EXIT_FAILURE;
         }
         if (claimed_outdegree >= 1) {
             if (g->vertices[i]->outgoing == NULL) {
                 // outgoing edge is NULL while outdegree is larger than 0
-                printf("FATAL: bad vertex structure found! Outdegree > 1 while outgoing is NULL. Problematic vertex id is %lld", g->vertices[i]->id);
+                printf("FATAL: bad vertex structure found! Outdegree > 1 while outgoing is NULL. Problematic vertex id is %lld\n", g->vertices[i]->id);
                 return EXIT_FAILURE;
             }
             Edge* pEdge = g->vertices[i]->outgoing;
             while (pEdge != NULL) {
                 if (pEdge->from_vertex_id != g->vertices[i]->id) {
                     // found foreign edges not emitted from the current vertex
-                    printf("FATAL: bad vertex structure found! Found an outgoing edge NOT belonging to this vertex. Problematic vertex id is %lld", g->vertices[i]->id);
+                    printf("FATAL: bad vertex structure found! Found an outgoing edge NOT belonging to this vertex. Problematic vertex id is %lld\n", g->vertices[i]->id);
                     return EXIT_FAILURE;
                 }
                 real_outdegree++;
@@ -438,7 +444,7 @@ int ValidateGraph(Graph* g)
             }
             if (real_outdegree != claimed_outdegree) {
                 // real outdegree calculated by counting the outgoing edges is not equal to the recorded outdegree
-                printf("FATAL: bad vertex structure found! Number of outgoing edges is NOT equal to the outdegree it claims. Problematic vertex id is %lld", g->vertices[i]->id);
+                printf("FATAL: bad vertex structure found! Number of outgoing edges is NOT equal to the outdegree it claims. Problematic vertex id is %lld\n", g->vertices[i]->id);
                 return EXIT_FAILURE;
             }
         }
