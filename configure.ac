@@ -1,5 +1,6 @@
 AC_INIT([mmspa4pg], [1.0], [nudtlliu@gmail.com])
 #CFLAGS="-arch i386"
+CFLAGS="$CFLAGS -I/usr/local/include"
 LDFLAGS="$LDFLAGS -L/usr/local/lib"
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_PROG_CC
