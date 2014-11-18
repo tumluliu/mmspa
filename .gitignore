@@ -7,7 +7,6 @@
 *.log
 *.pyc
 *.tmp
-*.m4
 
 *~
 .#*
@@ -26,9 +25,5 @@ config.h
 config.intl
 config.log
 config.status
-ar-lib
-compile
 configure.scan
-depcomp
-missing
 stamp-h1
