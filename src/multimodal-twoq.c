@@ -4,7 +4,7 @@
  *  Created on: May 4, 2009
  *      Author: LIU Lu
  */
-#include "mmspa4pg/mmspa4pg.h"
+#include "../include/mmspa4pg.h"
 
 /* status of vertex regarding to queue */
 #define UNREACHED   -1
