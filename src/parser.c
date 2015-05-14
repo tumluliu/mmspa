@@ -19,53 +19,48 @@ PGconn* conn;
 
 //void ReadVertices(PGresult* res, Vertex*** vertexArrayAddr);
 
-void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, int vertexCount, const char* costFactor);
+void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, int vertexCount, 
+        const char* costFactor);
 		
 void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr);
 
-void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpointArray, int switchpointCount);
+void CombineGraphs(Vertex** vertexArray, int vertexCount, 
+        SwitchPoint** switchpointArray, int switchpointCount);
 
 int InitializeGraphs(int graphCount);
 
 int ValidateGraph(Graph* g);
 
-static void exit_nicely(PGconn *conn)
-{
+static void exit_nicely(PGconn *conn) {
     PQfinish(conn);
     exit(1);
 }
 
-int ConnectDB(const char* pgConnString)
-{
+int ConnectDB(const char* pgConnString) {
 	conn = PQconnectdb(pgConnString);
-	if (PQstatus(conn) != CONNECTION_OK)
-    {
+	if (PQstatus(conn) != CONNECTION_OK) {
     	printf("Connection to database failed: %s", PQerrorMessage(conn));
 		return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
-void DisconnectDB()
-{
+void DisconnectDB() {
 	PQfinish(conn);
 }
 
-int Parse()
-{
+int Parse() {
 	extern MultimodalRoutingPlan* plan;	
 	
 	/*printf("[DEBUG] init multimodal graphs\n");*/
-	if (InitializeGraphs(plan->mode_count) == EXIT_FAILURE)
-	{
+	if (InitializeGraphs(plan->mode_count) == EXIT_FAILURE) {
 		printf("initialization of graphs failed\n");
 		return EXIT_FAILURE;
 	}
 
 	int i = 0;
 	graphCount = plan->mode_count;
-	for (i = 0; i < plan->mode_count; i++)
-	{
+	for (i = 0; i < plan->mode_count; i++) {
 		int modeId = plan->mode_id_list[i];
 		int vertexCount = 0;
 		char switchFilterCondition[1024];
@@ -76,52 +71,51 @@ int Parse()
 		Graph* tmpGraph;
 		tmpGraph = (Graph*) malloc(sizeof(Graph));
 		tmpGraph->id = modeId;
-		if (modeId == PUBLIC_TRANSPORT_MODE_ID)
-		{
-			// construct query clause for foot and all the selected public transit modes;
+		if (modeId == PUBLIC_TRANSPORT_MODE_ID) {
+			// construct query clause for foot and all the selected public 
+			// transit modes;
 			int j = 0;
 			char publicModesClause[256];
-			sprintf(publicModesClause, "vertices.mode_id = %d OR vertices.mode_id = %d", WALKING_MODE_ID, plan->public_transit_mode_id_set[0]);
-			for (j = 1; j < plan->public_transit_mode_count; j++)
-			{
+			sprintf(publicModesClause, 
+			        "vertices.mode_id = %d OR vertices.mode_id = %d", 
+			        WALKING_MODE_ID, plan->public_transit_mode_id_set[0]);
+			for (j = 1; j < plan->public_transit_mode_count; j++) {
 				int publicModeId = plan->public_transit_mode_id_set[j];
 				char strPublicModeIdSeg[32];
-				sprintf(strPublicModeIdSeg, " OR vertices.mode_id = %d", publicModeId);
+				sprintf(strPublicModeIdSeg, " OR vertices.mode_id = %d", 
+				        publicModeId);
 				strcat(publicModesClause, strPublicModeIdSeg);
 			}
-//			sprintf(graphFilterCondition,
-//			"(SELECT vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id FROM edges \
-//INNER JOIN vertices ON edges.from_id=vertices.vertex_id WHERE (%s) \
-//UNION SELECT vertices.vertex_id, NULL, NULL, NULL, NULL, out_degree, mode_id FROM vertices \
-//WHERE out_degree=0 AND (%s)) ORDER BY vertex_id", publicModesClause, publicModesClause);
 			sprintf(graphFilterCondition, 
-			"(SELECT vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id FROM edges \
-INNER JOIN vertices ON edges.from_id=vertices.vertex_id WHERE (%s) \
-UNION SELECT vertices.vertex_id, NULL, NULL, NULL, out_degree, mode_id FROM vertices \
-WHERE out_degree=0 AND (%s)) ORDER BY vertex_id", publicModesClause, publicModesClause);
-			sprintf(vertexFilterCondition, "SELECT COUNT(*) FROM vertices WHERE (%s)", publicModesClause);
+                    "(SELECT vertices.vertex_id, edges.to_id, edges.length, \
+                    edges.speed_factor, vertices.out_degree, edges.mode_id FROM \
+                    edges INNER JOIN vertices ON edges.from_id=vertices.vertex_id \
+                    WHERE (%s) UNION SELECT vertices.vertex_id, NULL, NULL, NULL, \
+                    out_degree, mode_id FROM vertices WHERE out_degree=0 AND (%s)) \
+                    ORDER BY vertex_id",
+                    publicModesClause, publicModesClause);
+			sprintf(vertexFilterCondition, 
+			        "SELECT COUNT(*) FROM vertices WHERE (%s)", publicModesClause);
 		}
-		else
-		{
-//			sprintf(graphFilterCondition,
-//			"(SELECT vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id FROM edges \
-//INNER JOIN vertices ON edges.from_id=vertices.vertex_id WHERE edges.mode_id=%d \
-//UNION SELECT vertices.vertex_id, NULL, NULL, NULL, NULL, out_degree, mode_id FROM vertices \
-//WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
+		else {
 			sprintf(graphFilterCondition, 
-			"(SELECT vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id FROM edges \
-INNER JOIN vertices ON edges.from_id=vertices.vertex_id WHERE edges.mode_id=%d \
-UNION SELECT vertices.vertex_id, NULL, NULL, NULL, out_degree, mode_id FROM vertices \
-WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
-			sprintf(vertexFilterCondition, "SELECT COUNT(*) FROM vertices WHERE mode_id=%d", modeId);
+                    "(SELECT vertices.vertex_id, edges.to_id, edges.length, \
+                    edges.speed_factor, vertices.out_degree, edges.mode_id FROM \
+                    edges INNER JOIN vertices ON edges.from_id=vertices.vertex_id \
+                    WHERE edges.mode_id=%d UNION SELECT vertices.vertex_id, NULL, \
+                    NULL, NULL, out_degree, mode_id FROM vertices WHERE \
+                    out_degree=0 AND mode_id=%d) ORDER BY vertex_id", 
+                    modeId, modeId);
+			sprintf(vertexFilterCondition, 
+			        "SELECT COUNT(*) FROM vertices WHERE mode_id=%d", modeId);
 		}
 		
 		// Retrieve the number of vertices
 		PGresult* vertexResults;
 		vertexResults = PQexec(conn, vertexFilterCondition);
-	    if (PQresultStatus(vertexResults) != PGRES_TUPLES_OK)
-	    {
-	        fprintf(stderr, "query in vertices table failed: %s", PQerrorMessage(conn));
+	    if (PQresultStatus(vertexResults) != PGRES_TUPLES_OK) {
+	        fprintf(stderr, "query in vertices table failed: %s", 
+	                PQerrorMessage(conn));
 	        PQclear(vertexResults);
 	        exit_nicely(conn);
 	    }
@@ -132,9 +126,9 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		// Retrieve and read graph
 		PGresult* graphResults;
 		graphResults = PQexec(conn, graphFilterCondition);
-	    if (PQresultStatus(graphResults) != PGRES_TUPLES_OK)
-	    {
-	        fprintf(stderr, "query in edges and vertices table failed: %s", PQerrorMessage(conn));
+	    if (PQresultStatus(graphResults) != PGRES_TUPLES_OK) {
+	        fprintf(stderr, "query in edges and vertices table failed: %s", 
+	                PQerrorMessage(conn));
 	        PQclear(graphResults);
 	        exit_nicely(conn);
 	    }
@@ -145,43 +139,46 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		
 		// Combine all the selected public transit modes and foot networks
 		// if current mode_id is PUBLIC_TRANSPORT_MODE_ID
-		if (modeId == PUBLIC_TRANSPORT_MODE_ID)
-		{
+		if (modeId == PUBLIC_TRANSPORT_MODE_ID) {
 			// read switch points between all the PT mode pairs 
 			int j = 0, k = 0;
 			char publicSwitchClause[1024];
 			sprintf(publicSwitchClause, 
-				" ((from_mode_id = %d AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = %d))", 
-				WALKING_MODE_ID, plan->public_transit_mode_id_set[0], 
+                    " ((from_mode_id = %d AND to_mode_id = %d) OR \
+                    (from_mode_id = %d AND to_mode_id = %d))", 
+                    WALKING_MODE_ID, plan->public_transit_mode_id_set[0], 
 				plan->public_transit_mode_id_set[0], WALKING_MODE_ID);
-			for (j = 1; j < plan->public_transit_mode_count; j++)
-			{
-				int publicModeId = plan->public_transit_mode_id_set[j];					
+			for (j = 1; j < plan->public_transit_mode_count; j++) {
+				int publicModeId = plan->public_transit_mode_id_set[j];	
 				char strPublcSwitchSeg[128];
 				sprintf(strPublcSwitchSeg, 
-					" OR ((from_mode_id = %d AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = %d))", 
-					WALKING_MODE_ID, publicModeId, publicModeId, WALKING_MODE_ID);
+                        " OR ((from_mode_id = %d AND to_mode_id = %d) OR \
+                        (from_mode_id = %d AND to_mode_id = %d))", 
+                        WALKING_MODE_ID, publicModeId, publicModeId, WALKING_MODE_ID);
 				strcat(publicSwitchClause, strPublcSwitchSeg);
 				// Retrieve switch point infos between (WALKING_MODE_ID, j)
 			}
 			for (j = 0; j < plan->public_transit_mode_count - 1; j++)
-				for (k = j + 1; k < plan->public_transit_mode_count; k++) 
-				{
+				for (k = j + 1; k < plan->public_transit_mode_count; k++) {
 					int fromPublicModeId = plan->public_transit_mode_id_set[j];
 					int toPublicModeId = plan->public_transit_mode_id_set[k];
 					// Retrieve switch point infos between (j,k)
 					char strPublcSwitchSeg[128];
 					sprintf(strPublcSwitchSeg, 
-						" OR ((from_mode_id = %d AND to_mode_id = %d) OR (from_mode_id = %d AND to_mode_id = %d))",
-						fromPublicModeId, toPublicModeId, toPublicModeId, fromPublicModeId);  
+						" OR ((from_mode_id = %d AND to_mode_id = %d) OR \
+						(from_mode_id = %d AND to_mode_id = %d))",
+						fromPublicModeId, toPublicModeId, 
+						toPublicModeId, fromPublicModeId);  
 					strcat(publicSwitchClause, strPublcSwitchSeg);
 				}
-			sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE %s", publicSwitchClause);
+			sprintf(switchFilterCondition, 
+			        "SELECT from_vertex_id, to_vertex_id, cost FROM \
+			        switch_points WHERE %s", publicSwitchClause);
 			PGresult* switchpointResults;
 			switchpointResults = PQexec(conn, switchFilterCondition);
-		    if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK)
-		    {
-		        fprintf(stderr, "query in switch_points table failed: %s", PQerrorMessage(conn));
+		    if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK) {
+		        fprintf(stderr, "query in switch_points table failed: %s", 
+		                PQerrorMessage(conn));
 		        PQclear(switchpointResults);
 		        exit_nicely(conn);
 		    }
@@ -190,8 +187,11 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		    publicSwitchpointCount = PQntuples(switchpointResults);
 			ReadSwitchPoints(switchpointResults, &publicSwitchpoints);
 			PQclear(switchpointResults);
-			// combine the graphs by adding switch lines in the (vertices, edges) set and get the mode PUBLIC_TRANSPORT_MODE_ID graph
-			CombineGraphs(vertices, vertexCount, publicSwitchpoints, publicSwitchpointCount);
+			// combine the graphs by adding switch lines in the 
+			// (vertices, edges) set and get the mode 
+			// PUBLIC_TRANSPORT_MODE_ID graph
+			CombineGraphs(vertices, vertexCount, publicSwitchpoints, 
+			        publicSwitchpointCount);
 		}
 		
 		tmpGraph->vertices = vertices;
@@ -199,45 +199,52 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 		if (ValidateGraph(tmpGraph) == EXIT_FAILURE)
 		    return EXIT_FAILURE;
 		graphs[i] = tmpGraph;
-		if (i > 0)
-		{
+		if (i > 0) {
 			int j = 0;
-			if ((plan->mode_id_list[i-1] != PUBLIC_TRANSPORT_MODE_ID) && (plan->mode_id_list[i] != PUBLIC_TRANSPORT_MODE_ID))
-				sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE from_mode_id=%d AND to_mode_id=%d AND %s", 
-					plan->mode_id_list[i-1], plan->mode_id_list[i], plan->switch_condition_list[i-1]);
-			else if (plan->mode_id_list[i-1] == PUBLIC_TRANSPORT_MODE_ID)
-			{
+			if ((plan->mode_id_list[i-1] != PUBLIC_TRANSPORT_MODE_ID) && 
+			        (plan->mode_id_list[i] != PUBLIC_TRANSPORT_MODE_ID))
+				sprintf(switchFilterCondition, 
+				        "SELECT from_vertex_id, to_vertex_id, cost FROM \
+				        switch_points WHERE from_mode_id=%d AND \
+				        to_mode_id=%d AND %s", 
+                        plan->mode_id_list[i-1], plan->mode_id_list[i], 
+                        plan->switch_condition_list[i-1]);
+			else if (plan->mode_id_list[i-1] == PUBLIC_TRANSPORT_MODE_ID) {
 				char strFromModeClause[256];
 				sprintf(strFromModeClause, "from_mode_id = %d ", WALKING_MODE_ID);
-				for (j = 0; j < plan->public_transit_mode_count; j++)
-				{
+				for (j = 0; j < plan->public_transit_mode_count; j++) {
 					int publicModeId = plan->public_transit_mode_id_set[j];
 					char strPublicSegClause[128];
-					sprintf(strPublicSegClause, "OR from_mode_id = %d ", publicModeId);
+					sprintf(strPublicSegClause, "OR from_mode_id = %d ", 
+					        publicModeId);
 					strcat(strFromModeClause, strPublicSegClause);
 				}
-				sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE (%s) AND to_mode_id=%d AND %s", 
-					strFromModeClause, plan->mode_id_list[i], plan->switch_condition_list[i-1]);
+				sprintf(switchFilterCondition, 
+				        "SELECT from_vertex_id, to_vertex_id, cost FROM \
+				        switch_points WHERE (%s) AND to_mode_id=%d AND %s", 
+                        strFromModeClause, plan->mode_id_list[i], 
+                        plan->switch_condition_list[i-1]);
 			}
-			else if (plan->mode_id_list[i] == PUBLIC_TRANSPORT_MODE_ID)
-			{
+			else if (plan->mode_id_list[i] == PUBLIC_TRANSPORT_MODE_ID) {
 				char strToModeClause[256];
 				sprintf(strToModeClause, "to_mode_id = %d ", WALKING_MODE_ID);
-				for (j = 0; j < plan->public_transit_mode_count; j++)
-				{
+				for (j = 0; j < plan->public_transit_mode_count; j++) {
 					int publicModeId = plan->public_transit_mode_id_set[j];
 					char strPublicSegClause[128];
 					sprintf(strPublicSegClause, "OR to_mode_id = %d ", publicModeId);
 					strcat(strToModeClause, strPublicSegClause);
 				}
-				sprintf(switchFilterCondition, "SELECT from_vertex_id, to_vertex_id, cost FROM switch_points WHERE from_mode_id=%d AND (%s) AND %s", 
-					plan->mode_id_list[i-1], strToModeClause, plan->switch_condition_list[i-1]);
+				sprintf(switchFilterCondition, 
+				        "SELECT from_vertex_id, to_vertex_id, cost FROM \
+				        switch_points WHERE from_mode_id=%d AND (%s) AND %s", 
+                        plan->mode_id_list[i-1], strToModeClause, 
+                        plan->switch_condition_list[i-1]);
 			}
 			PGresult* switchpointResults;
 			switchpointResults = PQexec(conn, switchFilterCondition);
-		    if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK)
-		    {
-		        fprintf(stderr, "query in switch_points table failed: %s", PQerrorMessage(conn));
+		    if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK) {
+		        fprintf(stderr, "query in switch_points table failed: %s", 
+		                PQerrorMessage(conn));
 		        PQclear(switchpointResults);
 		        exit_nicely(conn);
 		    }
@@ -252,35 +259,32 @@ WHERE out_degree=0 AND mode_id=%d) ORDER BY vertex_id", modeId, modeId);
 	return EXIT_SUCCESS;
 }
 
-int InitializeGraphs(int graphCount)
-{
+int InitializeGraphs(int graphCount) {
 	graphs = (Graph **) calloc(graphCount, sizeof(Graph*));
-	if (graphCount > 1)
-	{
-		switchpointsArr = (SwitchPoint ***) calloc(graphCount - 1, sizeof(SwitchPoint**));
+	if (graphCount > 1) {
+		switchpointsArr = (SwitchPoint ***) calloc(graphCount - 1, 
+		        sizeof(SwitchPoint**));
 		switchpointCounts = (int *) calloc(graphCount - 1, sizeof(int));
 	}
 	return EXIT_SUCCESS;
 }
 
-void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, int vertexCount, const char* costFactor)
-{
+void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, 
+        int vertexCount, const char* costFactor) {
 	/* read the edges and vertices from the query result */
 	int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
 	recordCount = PQntuples(res);	
 	*vertexArrayAddr = (Vertex**) calloc(vertexCount, sizeof(Vertex*));
 	Vertex* tmpVertex = NULL;
-	for (i = 0; i < recordCount; i++)
-	{
+	for (i = 0; i < recordCount; i++) {
 		/* fields in the query results:		 * 
 		 * vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id
 		 * 0,                  1,           2,            3,                  4,                   5,             6
 		 */
 		Edge* tmpEdge;
 		tmpEdge = (Edge*) malloc(sizeof(Edge));
-		if (outgoingCursor == 0)
-		{
-			// a new group of edge records with the same from_vertex starts...			
+		if (outgoingCursor == 0) {
+			// a new group of edge records with the same from_vertex starts...	
 			tmpVertex = (Vertex *) malloc(sizeof(Vertex));
 			/* vertex id */		
 			tmpVertex->id = atoll(PQgetvalue(res, i, 0));
@@ -314,8 +318,7 @@ void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, int vertexCount, const 
 		Edge* outgoingEdge = tmpVertex->outgoing;
 		if (tmpVertex->outgoing == NULL)
 			tmpVertex->outgoing = tmpEdge;
-		else
-		{
+		else {
 			while (outgoingEdge->adjNext != NULL)
 				outgoingEdge = outgoingEdge->adjNext;
 			outgoingEdge->adjNext = tmpEdge;
@@ -324,14 +327,13 @@ void ReadGraph(PGresult* res, Vertex*** vertexArrayAddr, int vertexCount, const 
 	}
 }
 
-void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr)
-{
+void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr) {
 	/* read the switch_points information from the query result */
 	int switchpointCount, i = 0;
 	switchpointCount = PQntuples(res);
-	*switchpointArrayAddr = (SwitchPoint **) calloc(switchpointCount, sizeof(SwitchPoint *));
-	for (i = 0; i < switchpointCount; i++)
-	{
+	*switchpointArrayAddr = (SwitchPoint **) calloc(switchpointCount, 
+	        sizeof(SwitchPoint *));
+	for (i = 0; i < switchpointCount; i++) {
 		/* fields in query results:
 		 * from_vertex_id, to_vertex_id, cost
 		 * 0,              1,            2
@@ -344,17 +346,17 @@ void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr)
 		tmpSwitchPoint->to_vertex_id = atoll(PQgetvalue(res, i, 1));
 		tmpSwitchPoint->speed_factor = 0.015;
 		tmpSwitchPoint->length_factor = 1.0;
-		tmpSwitchPoint->length = atof(PQgetvalue(res, i, 2)) * tmpSwitchPoint->speed_factor;
+		tmpSwitchPoint->length = atof(PQgetvalue(res, i, 2)) * 
+		    tmpSwitchPoint->speed_factor;
 		(*switchpointArrayAddr)[i] = tmpSwitchPoint;
 	}
 }
 
-void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpointArray, int switchpointCount)
-{
+void CombineGraphs(Vertex** vertexArray, int vertexCount, 
+        SwitchPoint** switchpointArray, int switchpointCount) {
 	// Treat all the switch point pairs as new edges and add them into the graph
 	int i = 0;
-	for (i = 0; i < switchpointCount; i++)
-	{
+	for (i = 0; i < switchpointCount; i++) {
 		Edge* tmpEdge;
 		tmpEdge = (Edge*) malloc(sizeof(Edge));
 		/* from vertex */
@@ -362,12 +364,12 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpo
 		/* to vertex */
 		tmpEdge->to_vertex_id = switchpointArray[i]->to_vertex_id;
 		/* attach end to the adjacency list of start */
-		Vertex* vertexFrom = BinarySearchVertexById(vertexArray, 0, vertexCount - 1, switchpointArray[i]->from_vertex_id);
+		Vertex* vertexFrom = BinarySearchVertexById(vertexArray, 0, 
+		        vertexCount - 1, switchpointArray[i]->from_vertex_id);
 		Edge* outgoingEdge = vertexFrom->outgoing;
 		if (vertexFrom->outgoing == NULL)
 			vertexFrom->outgoing = tmpEdge;
-		else
-		{
+		else {
 			while (outgoingEdge->adjNext != NULL)
 				outgoingEdge = outgoingEdge->adjNext;
 			outgoingEdge->adjNext = tmpEdge;
@@ -385,8 +387,7 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount, SwitchPoint** switchpo
 }
 
 // Linear search when the vertex array is not sorted 
-Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id)
-{
+Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id) {
 	int i = 0;
 	for (i = 0; i < len; i++)
 	{
@@ -397,8 +398,8 @@ Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id)
 }
 
 // Binary search when the vertex array is sorted
-Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, long long id)
-{
+Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, 
+        long long id) {
 	if (high < low)
 		return NNULL; // not found
 	int mid = (low + high) / 2;
@@ -411,40 +412,50 @@ Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, long lon
 }
 
 // Check if the constructed graph has dirty data
-int ValidateGraph(Graph* g)
-{
+int ValidateGraph(Graph* g) {
     for (int i = 0; i < g->vertex_count; i++) {
         if (g->vertices[i] == NNULL) {
             // found a NULL vertex
-            printf("FATAL: NULL vertex found in graph, seq number is %d, previous vertex id is %lld\n", i, g->vertices[i-1]->id);
+            printf("FATAL: NULL vertex found in graph, seq number is %d, \
+                    previous vertex id is %lld\n", i, g->vertices[i-1]->id);
             return EXIT_FAILURE;
         }
         int claimed_outdegree = g->vertices[i]->outdegree;
         int real_outdegree = 0;
         if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
             // outgoing edges are not NULL while outdegree is 0
-            printf("FATAL: bad vertex structure found! Outdegree is 0 while outgoing is not NULL. Problematic vertex id is %lld\n", g->vertices[i]->id);
+            printf("FATAL: bad vertex structure found! \
+                    Outdegree is 0 while outgoing is not NULL. \
+                    Problematic vertex id is %lld\n", g->vertices[i]->id);
             return EXIT_FAILURE;
         }
         if (claimed_outdegree >= 1) {
             if (g->vertices[i]->outgoing == NULL) {
                 // outgoing edge is NULL while outdegree is larger than 0
-                printf("FATAL: bad vertex structure found! Outdegree > 1 while outgoing is NULL. Problematic vertex id is %lld\n", g->vertices[i]->id);
+                printf("FATAL: bad vertex structure found! \
+                        Outdegree > 1 while outgoing is NULL. \
+                        Problematic vertex id is %lld\n", g->vertices[i]->id);
                 return EXIT_FAILURE;
             }
             Edge* pEdge = g->vertices[i]->outgoing;
             while (pEdge != NULL) {
                 if (pEdge->from_vertex_id != g->vertices[i]->id) {
                     // found foreign edges not emitted from the current vertex
-                    printf("FATAL: bad vertex structure found! Found an outgoing edge NOT belonging to this vertex. Problematic vertex id is %lld\n", g->vertices[i]->id);
+                    printf("FATAL: bad vertex structure found! \
+                            Found an outgoing edge NOT belonging to this vertex. \
+                            Problematic vertex id is %lld\n", g->vertices[i]->id);
                     return EXIT_FAILURE;
                 }
                 real_outdegree++;
                 pEdge = pEdge->adjNext;
             }
             if (real_outdegree != claimed_outdegree) {
-                // real outdegree calculated by counting the outgoing edges is not equal to the recorded outdegree
-                printf("FATAL: bad vertex structure found! Number of outgoing edges is NOT equal to the outdegree it claims. Problematic vertex id is %lld\n", g->vertices[i]->id);
+                // real outdegree calculated by counting the outgoing edges is 
+                // not equal to the recorded outdegree
+                printf("FATAL: bad vertex structure found! \
+                        Number of outgoing edges is NOT equal to the outdegree \
+                        it claims. Problematic vertex id is %lld\n", 
+                        g->vertices[i]->id);
                 return EXIT_FAILURE;
             }
         }
