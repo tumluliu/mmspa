@@ -69,16 +69,17 @@ int main(void)
 "100201006446"
     };
 	/* change the PostgreSQL connection string according to your own config */
-	const char* conninfo = "dbname = 'mmrp_munich' user = 'liulu' password = 'workhard'";
+	const char* conninfo = "dbname = 'um_mmrp_munich' user = 'liulu' password = 'workhard'";
 	if (ConnectDB(conninfo) != EXIT_SUCCESS) {
     	printf("Connection to database failed.\n");
     	return EXIT_FAILURE;
     }
     printf("Connected to database. \n");
     printf("Creating multimodal routing plans... ");
-    CreateRoutingPlan(1, 1);
-    SetModeListItem(0, 1900);
-    SetPublicTransitModeSetItem(0, 1003);
+    //CreateRoutingPlan(1, 1);
+    CreateRoutingPlan(1, 0);
+    SetModeListItem(0, 1002);
+    //SetPublicTransitModeSetItem(0, 1003);
     SetCostFactor("speed");
     SetTargetConstraint(NULL);
     printf("done! \n");
@@ -100,9 +101,9 @@ int main(void)
 	printf("Calculating multimodal routes...\n");
 	printf("Test times: 50\n");
 	gettimeofday(&start_time, NULL);
-	MultimodalTwoQ(100201006726);
+	MultimodalTwoQ(100201026122);
 	double final_cost = 0.0;
-	final_cost = GetFinalCost(100201006499, "distance");
+	final_cost = GetFinalCost(100201014862, "distance");
 	printf("Final cost is: %f\n", final_cost);
 //	for (int i = 0; i < 50; i++)
 //		MultimodalTwoQ(atoll(testSources[i]));
