@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include "types_graph.h"
 
-static const int PUBLIC_TRANSPORT_MODE_ID = 1900;
-static const int WALKING_MODE_ID = 1002;
+static const int PUBLIC_TRANSPORT_MODE_ID = 19;
+static const int WALKING_MODE_ID = 12;
 
 int ConnectDB(const char* pgConnString);
 
