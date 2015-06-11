@@ -52,7 +52,9 @@ void DisconnectDB() {
 int Parse() {
     extern MultimodalRoutingPlan* plan;	
 
-    /*printf("[DEBUG] init multimodal graphs\n");*/
+#ifdef DEBUG
+    printf("[DEBUG] init multimodal graphs\n");
+#endif
     if (InitializeGraphs(plan->mode_count) == EXIT_FAILURE) {
         printf("initialization of graphs failed\n");
         return EXIT_FAILURE;
@@ -120,7 +122,9 @@ int Parse() {
             exit_nicely(conn);
         }
         vertexCount = atoi(PQgetvalue(vertexResults, 0, 0));
-        /*printf("[DEBUG] found vertex %d\n", vertexCount);*/
+#ifdef DEBUG
+        printf("[DEBUG] found vertex %d\n", vertexCount);
+#endif
         PQclear(vertexResults);
 
         // Retrieve and read graph
@@ -132,9 +136,13 @@ int Parse() {
             PQclear(graphResults);
             exit_nicely(conn);
         }
-        /*printf("[DEBUG] reading graphs...\n");*/
+#ifdef DEBUG
+        printf("[DEBUG] Reading graphs... ");
+#endif
         ReadGraph(graphResults, &vertices, vertexCount, plan->cost_factor);
-        /*printf("[DEBUG] done!\n");*/
+#ifdef DEBUG
+        printf(" done.\n");
+#endif
         PQclear(graphResults);
 
         // Combine all the selected public transit modes and foot networks
@@ -174,6 +182,10 @@ int Parse() {
             sprintf(switchFilterCondition, 
                     "SELECT from_vertex_id, to_vertex_id, cost FROM \
                     switch_points WHERE %s", publicSwitchClause);
+#ifdef DEBUG
+            printf("[DEBUG] SQL statement for filtering switch points: \n");
+            printf("%s\n", switchFilterCondition);
+#endif
             PGresult* switchpointResults;
             switchpointResults = PQexec(conn, switchFilterCondition);
             if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK) {
@@ -185,13 +197,26 @@ int Parse() {
             SwitchPoint** publicSwitchpoints;
             int publicSwitchpointCount;
             publicSwitchpointCount = PQntuples(switchpointResults);
+#ifdef DEBUG
+            printf("[DEBUG] Found switch points: %d\n", publicSwitchpointCount);
+            printf("[DEBUG] Reading and parsing switch points...");
+#endif
             ReadSwitchPoints(switchpointResults, &publicSwitchpoints);
+#ifdef DEBUG
+            printf(" done.\n");
+#endif
             PQclear(switchpointResults);
             // combine the graphs by adding switch lines in the 
             // (vertices, edges) set and get the mode 
             // PUBLIC_TRANSPORT_MODE_ID graph
+#ifdef DEBUG
+            printf("[DEBUG] Combining multimodal graphs for public transit...\n");
+#endif
             CombineGraphs(vertices, vertexCount, publicSwitchpoints, 
                     publicSwitchpointCount);
+#ifdef DEBUG
+            printf(" done.\n");
+#endif
         }
 
         tmpGraph->vertices = vertices;
@@ -355,8 +380,16 @@ void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr) {
 void CombineGraphs(Vertex** vertexArray, int vertexCount, 
         SwitchPoint** switchpointArray, int switchpointCount) {
     // Treat all the switch point pairs as new edges and add them into the graph
+#ifdef DEBUG
+    printf("[DEBUG] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
+#endif
     int i = 0;
     for (i = 0; i < switchpointCount; i++) {
+#ifdef DEBUG
+        printf("[DEBUG] Processing switch point %d\n", i + 1);
+        printf("[DEBUG] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
+        printf("[DEBUG] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
+#endif
         Edge* tmpEdge;
         tmpEdge = (Edge*) malloc(sizeof(Edge));
         /* from vertex */
@@ -364,6 +397,7 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount,
         /* to vertex */
         tmpEdge->to_vertex_id = switchpointArray[i]->to_vertex_id;
         /* attach end to the adjacency list of start */
+        // TODO: should check if the vertex searching result is null
         Vertex* vertexFrom = BinarySearchVertexById(vertexArray, 0, 
                 vertexCount - 1, switchpointArray[i]->from_vertex_id);
         Edge* outgoingEdge = vertexFrom->outgoing;
@@ -384,6 +418,9 @@ void CombineGraphs(Vertex** vertexArray, int vertexCount,
         /* length factor, === 1.0 */
         tmpEdge->length_factor = 1.0;
     }
+#ifdef DEBUG
+    printf("[DEBUG] Finish combining.\n");
+#endif
 }
 
 // Linear search when the vertex array is not sorted 
