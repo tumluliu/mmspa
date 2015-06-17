@@ -2210,6 +2210,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 #CFLAGS="-arch i386"
+#CC=c99
 CFLAGS="$CFLAGS -I/usr/local/include"
 LDFLAGS="$LDFLAGS -L/usr/local/lib"
 am__api_version='1.15'
