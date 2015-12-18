@@ -23,6 +23,9 @@
 #define NNULL (Vertex*)NULL
 #define VERY_FAR 1073741823
 
+static const int PUBLIC_TRANSPORT_MODE_ID = 19;
+static const int WALKING_MODE_ID = 12;
+
 typedef struct Edge Edge;
 typedef struct Vertex Vertex;
 typedef struct ModeGraph ModeGraph;
@@ -47,6 +50,9 @@ struct Vertex
 	double  elapsed_time;
 	double  walking_distance;
 	double  walking_time;
+	/* TODO: how about other types of cost along the path, e.g. gas, energy,
+	 * battery, fatigue, etc.? Here the ideal way is to make such metrics
+	 * configurable. */
 	Vertex  *parent; /* successor vertex in the SPT */
 	int     outdegree;
 	Edge    *outgoing; /* first outgoing edge in adjacency edge list */
@@ -70,5 +76,9 @@ struct SwitchPoint
 	double  length_factor;
 	double  speed_factor;
 };
+
+Vertex *SearchVertexById(Vertex **vertexArray, int len, long long id);
+Vertex *BinarySearchVertexById(Vertex **vertexArray, int low, int high, 
+        long long id);
 
 #endif /* MODEGRAPH_H_ */
