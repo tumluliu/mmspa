@@ -1,3 +1,20 @@
+/*
+ * =====================================================================================
+ *
+ *       Filename:  mmspa4pg.h
+ *
+ *    Description:  Exported API of multimodal shortest path algorithms library
+ *
+ *        Version:  1.0
+ *        Created:  2015/12/16 10时35分19秒
+ *       Revision:  none
+ *       Compiler:  gcc
+ *
+ *         Author:  Lu LIU (lliu), nudtlliu@gmail.com
+ *   Organization:  LfK@TUM
+ *
+ * =====================================================================================
+ */
 #ifndef MMSPA4PG_H_
 #define MMSPA4PG_H_
 
