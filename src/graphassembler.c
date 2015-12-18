@@ -12,19 +12,9 @@
 #include "../include/graphassembler.h"
 #include "../include/routingplan.h"
 
-ModeGraph **graphs = NULL;
 SwitchPoint ***switchpointsArr = NULL;
 int *switchpointCounts = NULL;
 int graphCount = 0;
-
-static void ReadSwitchPoints(PGresult *res, SwitchPoint ***switchpointArrayAddr);
-
-static void CombineGraphs(Vertex **vertexArray, int vertexCount, 
-        SwitchPoint **switchpointArray, int switchpointCount);
-
-static int InitializeGraphs(int graphCount);
-
-static int ValidateGraph(ModeGraph *g);
 
 static void exit_nicely(PGconn *conn) {
     PQfinish(conn);
@@ -46,17 +36,239 @@ static void disconnect_db() {
     PQfinish(conn);
 }
 
+static ModeGraph **graphbase = NULL;
+static SwitchPoint ** switchpointbase = NULL;
 
-static ModeGraph **graphbase;
-static SwitchPoint ** switchpointbase;
+static void load_modegraphs() {
+    graphbase = (ModeGraph **) calloc(TOTAL_MODES, sizeof(ModeGraph*));
+}
 
-/* 
- * ===  FUNCTION  ======================================================================
- *         Name:  load_graph_from_db
- *  Description:  Load ALL graph data and switch points from database 
- * =====================================================================================
- */
-int load_graph_from_db(const char* pg_conn_str) 
+static void load_switchpoints() {
+    return sps;
+}
+
+extern ModeGraph **active_graphs;
+
+static int init_graphs(int graphCount) {
+    active_graphs = (ModeGraph **) calloc(graphCount, sizeof(ModeGraph*));
+    if (graphCount > 1) {
+        switchpointsArr = (SwitchPoint ***) calloc(graphCount - 1, 
+                sizeof(SwitchPoint**));
+        switchpointCounts = (int *) calloc(graphCount - 1, sizeof(int));
+    }
+    return EXIT_SUCCESS;
+}
+
+static void read_graph(PGresult* res, Vertex*** vertexArrayAddr, 
+        int vertexCount, const char* costFactor) {
+    /* read the edges and vertices from the query result */
+    int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
+    recordCount = PQntuples(res);	
+    *vertexArrayAddr = (Vertex**) calloc(vertexCount, sizeof(Vertex*));
+    Vertex* tmpVertex = NULL;
+    for (i = 0; i < recordCount; i++) {
+        /* fields in the query results:		 * 
+         * vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id
+         * 0,                  1,           2,            3,                  4,                   5,             6
+         */
+        Edge* tmpEdge;
+        tmpEdge = (Edge*) malloc(sizeof(Edge));
+        if (outgoingCursor == 0) {
+            // a new group of edge records with the same from_vertex starts...	
+            tmpVertex = (Vertex *) malloc(sizeof(Vertex));
+            /* vertex id */		
+            tmpVertex->id = atoll(PQgetvalue(res, i, 0));
+            /* out degree */		
+            tmpVertex->outdegree = atoi(PQgetvalue(res, i, 4));
+            //			tmpVertex->first = -1;
+            tmpVertex->outgoing = NULL;
+            (*vertexArrayAddr)[vertexCursor] = tmpVertex;
+            vertexCursor++;
+            if (tmpVertex->outdegree == 0)
+                continue;
+        }
+        outgoingCursor++;
+        if (outgoingCursor == atoi(PQgetvalue(res, i, 4)))
+            outgoingCursor = 0;
+        /* edge id */
+        //tmpEdge->id = atoll(PQgetvalue(res, i, 1));
+        /* from vertex id */
+        tmpEdge->from_vertex_id = atoll(PQgetvalue(res, i, 0));
+        /* to vertex id*/
+        tmpEdge->to_vertex_id = atoll(PQgetvalue(res, i, 1));
+        /* edge length */
+        tmpEdge->length = atof(PQgetvalue(res, i, 2));
+        /* speed factor */
+        tmpEdge->speed_factor = atof(PQgetvalue(res, i, 3));
+        /* length factor, === 1.0 */
+        tmpEdge->length_factor = 1.0;
+        /* mode id of edge */
+        tmpEdge->mode_id = atoi(PQgetvalue(res, i, 5));
+        /* attach end to the adjacency list of start */
+        Edge* outgoingEdge = tmpVertex->outgoing;
+        if (tmpVertex->outgoing == NULL)
+            tmpVertex->outgoing = tmpEdge;
+        else {
+            while (outgoingEdge->adjNext != NULL)
+                outgoingEdge = outgoingEdge->adjNext;
+            outgoingEdge->adjNext = tmpEdge;
+        }
+        tmpEdge->adjNext = NULL;
+    }
+}
+
+static void read_switchpoints(PGresult* res, SwitchPoint*** switchpointArrayAddr) {
+    /* read the switch_points information from the query result */
+    int switchpointCount, i = 0;
+    switchpointCount = PQntuples(res);
+    *switchpointArrayAddr = (SwitchPoint **) calloc(switchpointCount, 
+            sizeof(SwitchPoint *));
+    for (i = 0; i < switchpointCount; i++) {
+        /* fields in query results:
+         * from_vertex_id, to_vertex_id, cost
+         * 0,              1,            2
+         */
+        SwitchPoint* tmpSwitchPoint;
+        tmpSwitchPoint = (SwitchPoint*) malloc(sizeof(SwitchPoint));
+        /* from vertex id */
+        tmpSwitchPoint->from_vertex_id = atoll(PQgetvalue(res, i, 0));
+        /* to vertex id */
+        tmpSwitchPoint->to_vertex_id = atoll(PQgetvalue(res, i, 1));
+        tmpSwitchPoint->speed_factor = 0.015;
+        tmpSwitchPoint->length_factor = 1.0;
+        tmpSwitchPoint->length = atof(PQgetvalue(res, i, 2)) * 
+            tmpSwitchPoint->speed_factor;
+        (*switchpointArrayAddr)[i] = tmpSwitchPoint;
+    }
+}
+
+static void combine_graphs(Vertex** vertexArray, int vertexCount, 
+        SwitchPoint** switchpointArray, int switchpointCount) {
+    // Treat all the switch point pairs as new edges and add them into the graph
+#ifdef DEBUG
+    printf("[DEBUG] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
+#endif
+    int i = 0;
+    for (i = 0; i < switchpointCount; i++) {
+#ifdef DEBUG
+        printf("[DEBUG] Processing switch point %d\n", i + 1);
+        printf("[DEBUG] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
+        printf("[DEBUG] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
+#endif
+        Edge* tmpEdge;
+        tmpEdge = (Edge*) malloc(sizeof(Edge));
+        /* from vertex */
+        tmpEdge->from_vertex_id = switchpointArray[i]->from_vertex_id;
+        /* to vertex */
+        tmpEdge->to_vertex_id = switchpointArray[i]->to_vertex_id;
+        /* attach end to the adjacency list of start */
+        // TODO: should check if the vertex searching result is null
+        Vertex* vertexFrom = BinarySearchVertexById(vertexArray, 0, 
+                vertexCount - 1, switchpointArray[i]->from_vertex_id);
+        Edge* outgoingEdge = vertexFrom->outgoing;
+        if (vertexFrom->outgoing == NULL)
+            vertexFrom->outgoing = tmpEdge;
+        else {
+            while (outgoingEdge->adjNext != NULL)
+                outgoingEdge = outgoingEdge->adjNext;
+            outgoingEdge->adjNext = tmpEdge;
+        }
+        vertexFrom->outdegree++;
+        tmpEdge->mode_id = WALKING_MODE_ID;
+        tmpEdge->adjNext = NULL;
+        /* edge length */
+        tmpEdge->length = switchpointArray[i]->length;
+        /* speed factor */
+        tmpEdge->speed_factor = switchpointArray[i]->speed_factor;
+        /* length factor, === 1.0 */
+        tmpEdge->length_factor = 1.0;
+    }
+#ifdef DEBUG
+    printf("[DEBUG] Finish combining.\n");
+#endif
+}
+
+// Linear search when the vertex array is not sorted 
+Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id) {
+    int i = 0;
+    for (i = 0; i < len; i++) {
+        if (vertexArray[i]->id == id)
+            return vertexArray[i];
+    }
+    return NNULL;
+}
+
+// Binary search when the vertex array is sorted
+Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, 
+        long long id) {
+    if (high < low)
+        return NNULL; // not found
+    int mid = (low + high) / 2;
+    if (vertexArray[mid]->id > id)
+        return BinarySearchVertexById(vertexArray, low, mid - 1, id);
+    else if (vertexArray[mid]->id < id)
+        return BinarySearchVertexById(vertexArray, mid + 1, high, id);
+    else
+        return vertexArray[mid];
+}
+
+// Check if the constructed graph has dirty data
+static int validate_graph(ModeGraph* g) {
+    for (int i = 0; i < g->vertex_count; i++) {
+        if (g->vertices[i] == NNULL) {
+            // found a NULL vertex
+            printf("FATAL: NULL vertex found in graph, seq number is %d, \
+                    previous vertex id is %lld\n", i, g->vertices[i-1]->id);
+            return EXIT_FAILURE;
+        }
+        /*printf("%d / %d: checking vertex %lld\n", i, g->vertex_count, */
+        /*g->vertices[i]->id);*/
+        int claimed_outdegree = g->vertices[i]->outdegree;
+        int real_outdegree = 0;
+        if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
+            // outgoing edges are not NULL while outdegree is 0
+            printf("FATAL: bad vertex structure found! \
+                    Outdegree is 0 while outgoing is not NULL. \
+                    Problematic vertex id is %lld\n", g->vertices[i]->id);
+            return EXIT_FAILURE;
+        }
+        if (claimed_outdegree >= 1) {
+            if (g->vertices[i]->outgoing == NULL) {
+                // outgoing edge is NULL while outdegree is larger than 0
+                printf("FATAL: bad vertex structure found! \
+                        Outdegree > 1 while outgoing is NULL. \
+                        Problematic vertex id is %lld\n", g->vertices[i]->id);
+                return EXIT_FAILURE;
+            }
+            Edge* pEdge = g->vertices[i]->outgoing;
+            /*printf("Outgoing edges: -\n");*/
+            while (pEdge != NULL) {
+                /*printf("\b |--> (%lld, %lld)\n", pEdge->from_vertex_id, pEdge->to_vertex_id);*/
+                if (pEdge->from_vertex_id != g->vertices[i]->id) {
+                    // found foreign edges not emitted from the current vertex
+                    printf("FATAL: bad vertex structure found! \
+                            Found an outgoing edge NOT belonging to this vertex. \
+                            Problematic vertex id is %lld, edge's from_vertex_id is %lld\n", g->vertices[i]->id, pEdge->from_vertex_id);
+                    return EXIT_FAILURE;
+                }
+                real_outdegree++;
+                pEdge = pEdge->adjNext;
+            }
+            if (real_outdegree != claimed_outdegree) {
+                // real outdegree calculated by counting the outgoing edges is 
+                // not equal to the recorded outdegree
+                printf("FATAL: bad vertex structure found! \
+                        Number of outgoing edges is NOT equal to the outdegree \
+                        it claims. Problematic vertex id is %lld\n", 
+                        g->vertices[i]->id);
+                return EXIT_FAILURE;
+            }
+        }
+    }
+    return EXIT_SUCCESS;
+}
+
+int LoadGraphFromDb(const char* pg_conn_str) 
 {
     /* Step 1: connect to database 
      * Step 2: read the series of graph data via SQL 
@@ -69,25 +281,17 @@ int load_graph_from_db(const char* pg_conn_str)
     return 0;
 }
 
-static void load_modegraphs() {
-    return gs;
+int Parse() {
+    return AssembleGraphs();
 }
 
-static void load_switchpoints() {
-    return sps;
-}
-
-int assemble_graphs() {
-    return parse();
-}
-
-int parse() {
+int AssembleGraphs() {
     extern RoutingPlan *plan;	
 
 #ifdef DEBUG
     printf("[DEBUG] init multimodal graphs\n");
 #endif
-    if (InitializeGraphs(plan->mode_count) == EXIT_FAILURE) {
+    if (init_graphs(plan->mode_count) == EXIT_FAILURE) {
         printf("initialization of graphs failed\n");
         return EXIT_FAILURE;
     }
@@ -233,7 +437,7 @@ int parse() {
             printf("[DEBUG] Found switch points: %d\n", publicSwitchpointCount);
             printf("[DEBUG] Reading and parsing switch points...");
 #endif
-            ReadSwitchPoints(switchpointResults, &publicSwitchpoints);
+            read_switchpoints(switchpointResults, &publicSwitchpoints);
 #ifdef DEBUG
             printf(" done.\n");
 #endif
@@ -244,7 +448,7 @@ int parse() {
 #ifdef DEBUG
             printf("[DEBUG] Combining multimodal graphs for public transit...\n");
 #endif
-            CombineGraphs(vertices, vertexCount, publicSwitchpoints, 
+            combine_graphs(vertices, vertexCount, publicSwitchpoints, 
                     publicSwitchpointCount);
 #ifdef DEBUG
             printf(" done.\n");
@@ -253,9 +457,9 @@ int parse() {
 
         tmpGraph->vertices = vertices;
         tmpGraph->vertex_count = vertexCount;
-        if (ValidateGraph(tmpGraph) == EXIT_FAILURE)
+        if (validate_graph(tmpGraph) == EXIT_FAILURE)
             return EXIT_FAILURE;
-        graphs[i] = tmpGraph;
+        active_graphs[i] = tmpGraph;
         if (i > 0) {
             int j = 0;
             if ((plan->mode_id_list[i-1] != PUBLIC_TRANSPORT_MODE_ID) && 
@@ -312,225 +516,5 @@ int parse() {
         }
     }
 
-    return EXIT_SUCCESS;
-}
-
-static int InitializeGraphs(int graphCount) {
-    graphs = (ModeGraph **) calloc(graphCount, sizeof(ModeGraph*));
-    if (graphCount > 1) {
-        switchpointsArr = (SwitchPoint ***) calloc(graphCount - 1, 
-                sizeof(SwitchPoint**));
-        switchpointCounts = (int *) calloc(graphCount - 1, sizeof(int));
-    }
-    return EXIT_SUCCESS;
-}
-
-static void read_graph(PGresult* res, Vertex*** vertexArrayAddr, 
-        int vertexCount, const char* costFactor) {
-    /* read the edges and vertices from the query result */
-    int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
-    recordCount = PQntuples(res);	
-    *vertexArrayAddr = (Vertex**) calloc(vertexCount, sizeof(Vertex*));
-    Vertex* tmpVertex = NULL;
-    for (i = 0; i < recordCount; i++) {
-        /* fields in the query results:		 * 
-         * vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id
-         * 0,                  1,           2,            3,                  4,                   5,             6
-         */
-        Edge* tmpEdge;
-        tmpEdge = (Edge*) malloc(sizeof(Edge));
-        if (outgoingCursor == 0) {
-            // a new group of edge records with the same from_vertex starts...	
-            tmpVertex = (Vertex *) malloc(sizeof(Vertex));
-            /* vertex id */		
-            tmpVertex->id = atoll(PQgetvalue(res, i, 0));
-            /* out degree */		
-            tmpVertex->outdegree = atoi(PQgetvalue(res, i, 4));
-            //			tmpVertex->first = -1;
-            tmpVertex->outgoing = NULL;
-            (*vertexArrayAddr)[vertexCursor] = tmpVertex;
-            vertexCursor++;
-            if (tmpVertex->outdegree == 0)
-                continue;
-        }
-        outgoingCursor++;
-        if (outgoingCursor == atoi(PQgetvalue(res, i, 4)))
-            outgoingCursor = 0;
-        /* edge id */
-        //tmpEdge->id = atoll(PQgetvalue(res, i, 1));
-        /* from vertex id */
-        tmpEdge->from_vertex_id = atoll(PQgetvalue(res, i, 0));
-        /* to vertex id*/
-        tmpEdge->to_vertex_id = atoll(PQgetvalue(res, i, 1));
-        /* edge length */
-        tmpEdge->length = atof(PQgetvalue(res, i, 2));
-        /* speed factor */
-        tmpEdge->speed_factor = atof(PQgetvalue(res, i, 3));
-        /* length factor, === 1.0 */
-        tmpEdge->length_factor = 1.0;
-        /* mode id of edge */
-        tmpEdge->mode_id = atoi(PQgetvalue(res, i, 5));
-        /* attach end to the adjacency list of start */
-        Edge* outgoingEdge = tmpVertex->outgoing;
-        if (tmpVertex->outgoing == NULL)
-            tmpVertex->outgoing = tmpEdge;
-        else {
-            while (outgoingEdge->adjNext != NULL)
-                outgoingEdge = outgoingEdge->adjNext;
-            outgoingEdge->adjNext = tmpEdge;
-        }
-        tmpEdge->adjNext = NULL;
-    }
-}
-
-void ReadSwitchPoints(PGresult* res, SwitchPoint*** switchpointArrayAddr) {
-    /* read the switch_points information from the query result */
-    int switchpointCount, i = 0;
-    switchpointCount = PQntuples(res);
-    *switchpointArrayAddr = (SwitchPoint **) calloc(switchpointCount, 
-            sizeof(SwitchPoint *));
-    for (i = 0; i < switchpointCount; i++) {
-        /* fields in query results:
-         * from_vertex_id, to_vertex_id, cost
-         * 0,              1,            2
-         */
-        SwitchPoint* tmpSwitchPoint;
-        tmpSwitchPoint = (SwitchPoint*) malloc(sizeof(SwitchPoint));
-        /* from vertex id */
-        tmpSwitchPoint->from_vertex_id = atoll(PQgetvalue(res, i, 0));
-        /* to vertex id */
-        tmpSwitchPoint->to_vertex_id = atoll(PQgetvalue(res, i, 1));
-        tmpSwitchPoint->speed_factor = 0.015;
-        tmpSwitchPoint->length_factor = 1.0;
-        tmpSwitchPoint->length = atof(PQgetvalue(res, i, 2)) * 
-            tmpSwitchPoint->speed_factor;
-        (*switchpointArrayAddr)[i] = tmpSwitchPoint;
-    }
-}
-
-static void CombineGraphs(Vertex** vertexArray, int vertexCount, 
-        SwitchPoint** switchpointArray, int switchpointCount) {
-    // Treat all the switch point pairs as new edges and add them into the graph
-#ifdef DEBUG
-    printf("[DEBUG] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
-#endif
-    int i = 0;
-    for (i = 0; i < switchpointCount; i++) {
-#ifdef DEBUG
-        printf("[DEBUG] Processing switch point %d\n", i + 1);
-        printf("[DEBUG] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
-        printf("[DEBUG] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
-#endif
-        Edge* tmpEdge;
-        tmpEdge = (Edge*) malloc(sizeof(Edge));
-        /* from vertex */
-        tmpEdge->from_vertex_id = switchpointArray[i]->from_vertex_id;
-        /* to vertex */
-        tmpEdge->to_vertex_id = switchpointArray[i]->to_vertex_id;
-        /* attach end to the adjacency list of start */
-        // TODO: should check if the vertex searching result is null
-        Vertex* vertexFrom = BinarySearchVertexById(vertexArray, 0, 
-                vertexCount - 1, switchpointArray[i]->from_vertex_id);
-        Edge* outgoingEdge = vertexFrom->outgoing;
-        if (vertexFrom->outgoing == NULL)
-            vertexFrom->outgoing = tmpEdge;
-        else {
-            while (outgoingEdge->adjNext != NULL)
-                outgoingEdge = outgoingEdge->adjNext;
-            outgoingEdge->adjNext = tmpEdge;
-        }
-        vertexFrom->outdegree++;
-        tmpEdge->mode_id = WALKING_MODE_ID;
-        tmpEdge->adjNext = NULL;
-        /* edge length */
-        tmpEdge->length = switchpointArray[i]->length;
-        /* speed factor */
-        tmpEdge->speed_factor = switchpointArray[i]->speed_factor;
-        /* length factor, === 1.0 */
-        tmpEdge->length_factor = 1.0;
-    }
-#ifdef DEBUG
-    printf("[DEBUG] Finish combining.\n");
-#endif
-}
-
-// Linear search when the vertex array is not sorted 
-Vertex* SearchVertexById(Vertex** vertexArray, int len, long long id) {
-    int i = 0;
-    for (i = 0; i < len; i++)
-    {
-        if (vertexArray[i]->id == id)
-            return vertexArray[i];
-    }
-    return NNULL;
-}
-
-// Binary search when the vertex array is sorted
-Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high, 
-        long long id) {
-    if (high < low)
-        return NNULL; // not found
-    int mid = (low + high) / 2;
-    if (vertexArray[mid]->id > id)
-        return BinarySearchVertexById(vertexArray, low, mid - 1, id);
-    else if (vertexArray[mid]->id < id)
-        return BinarySearchVertexById(vertexArray, mid + 1, high, id);
-    else
-        return vertexArray[mid];
-}
-
-// Check if the constructed graph has dirty data
-int ValidateGraph(Graph* g) {
-    for (int i = 0; i < g->vertex_count; i++) {
-        if (g->vertices[i] == NNULL) {
-            // found a NULL vertex
-            printf("FATAL: NULL vertex found in graph, seq number is %d, \
-                    previous vertex id is %lld\n", i, g->vertices[i-1]->id);
-            return EXIT_FAILURE;
-        }
-        /*printf("%d / %d: checking vertex %lld\n", i, g->vertex_count, */
-        /*g->vertices[i]->id);*/
-        int claimed_outdegree = g->vertices[i]->outdegree;
-        int real_outdegree = 0;
-        if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
-            // outgoing edges are not NULL while outdegree is 0
-            printf("FATAL: bad vertex structure found! \
-                    Outdegree is 0 while outgoing is not NULL. \
-                    Problematic vertex id is %lld\n", g->vertices[i]->id);
-            return EXIT_FAILURE;
-        }
-        if (claimed_outdegree >= 1) {
-            if (g->vertices[i]->outgoing == NULL) {
-                // outgoing edge is NULL while outdegree is larger than 0
-                printf("FATAL: bad vertex structure found! \
-                        Outdegree > 1 while outgoing is NULL. \
-                        Problematic vertex id is %lld\n", g->vertices[i]->id);
-                return EXIT_FAILURE;
-            }
-            Edge* pEdge = g->vertices[i]->outgoing;
-            /*printf("Outgoing edges: -\n");*/
-            while (pEdge != NULL) {
-                /*printf("\b |--> (%lld, %lld)\n", pEdge->from_vertex_id, pEdge->to_vertex_id);*/
-                if (pEdge->from_vertex_id != g->vertices[i]->id) {
-                    // found foreign edges not emitted from the current vertex
-                    printf("FATAL: bad vertex structure found! \
-                            Found an outgoing edge NOT belonging to this vertex. \
-                            Problematic vertex id is %lld, edge's from_vertex_id is %lld\n", g->vertices[i]->id, pEdge->from_vertex_id);
-                    return EXIT_FAILURE;
-                }
-                real_outdegree++;
-                pEdge = pEdge->adjNext;
-            }
-            if (real_outdegree != claimed_outdegree) {
-                // real outdegree calculated by counting the outgoing edges is 
-                // not equal to the recorded outdegree
-                printf("FATAL: bad vertex structure found! \
-                        Number of outgoing edges is NOT equal to the outdegree \
-                        it claims. Problematic vertex id is %lld\n", 
-                        g->vertices[i]->id);
-                return EXIT_FAILURE;
-            }
-        }
-    }
     return EXIT_SUCCESS;
 }
