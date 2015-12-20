@@ -23,6 +23,10 @@
 
 #define NNULL (Vertex*)NULL
 #define VERY_FAR 1073741823
+/* TOTAL_MODES is 7 instead of 9 because so far the TAXI mode is not considered, 
+ * and the public transport is actually a abstract mode consisting of UNDERGROUND, 
+ * SUBURBAN, TRAM and BUS */
+#define TOTAL_MODES 7
 
 typedef struct Edge Edge;
 typedef struct Vertex Vertex;
@@ -57,11 +61,6 @@ enum MODES {
     TAXI                  = 18,
     PUBLIC_TRANSPORTATION = 19
 };
-
-/* TOTAL_MODES is 7 instead of 9 because so far the TAXI mode is not considered, 
- * and the public transport is actually a abstract mode consisting of UNDERGROUND, 
- * SUBURBAN, TRAM and BUS */
-const int TOTAL_MODES = 7;
 
 struct Edge
 {
