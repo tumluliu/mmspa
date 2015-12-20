@@ -9,12 +9,16 @@
  */
   
 #include "../include/mmspa4pg.h"
+#include "../include/pathinfo.h"
  
 PathRecorder*** pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;
 int inputModeCount = 0;
 RoutingPlan* plan = NULL;
 
+/* 
+ * Public Function declarations
+ */
 void DisposeResultPathTable();
 
 void DisposeGraphs();
@@ -22,9 +26,18 @@ void DisposeGraphs();
 void DisposeSwitchPoints();
 
 void DisposeRoutingPlan();
+
+/* 
+ * Private function declarations
+ */
+static SwitchPoint *searchSwitchPointByToId(int64_t id, SwitchPoint** spList, 
+        int spListLength);
+
+static PathRecorder *searchRecordByVertexId(int64_t id, PathRecorder **recordList, 
+        int recordListLength);
 		
 void CreateRoutingPlan(int modeCount, int publicModeCount) {
-	plan = (RoutingPlan*) malloc(sizeof(MultimodalRoutingPlan));
+	plan = (RoutingPlan*) malloc(sizeof(RoutingPlan));
 	plan->mode_count = modeCount;
 	plan->public_transit_mode_count = publicModeCount;
 	plan->mode_id_list = (int*) calloc(modeCount, sizeof(int));
@@ -170,12 +183,10 @@ Path** GetFinalPath(int64_t source, int64_t target) {
 	int i = 0, pathVertexCount = 1, j = 0;
 	PathRecorder* pr;
 	Path** paths = (Path **) calloc(inputModeCount, sizeof(Path*));
-	//printf("Mode %d\n", inputModeCount - 1);
-	pr = SearchRecordByVertexId(target, pathRecordTable[inputModeCount - 1],
+	pr = searchRecordByVertexId(target, pathRecordTable[inputModeCount - 1],
 			pathRecordCountArray[inputModeCount - 1]);
-	//printf("%s\n", pr->id);
 	while (pr->parent_vertex_id != pr->vertex_id) {
-		pr = SearchRecordByVertexId(pr->parent_vertex_id,
+		pr = searchRecordByVertexId(pr->parent_vertex_id,
 				pathRecordTable[inputModeCount - 1],
 				pathRecordCountArray[inputModeCount - 1]);
 		if (pr == NULL) {
@@ -190,13 +201,13 @@ Path** GetFinalPath(int64_t source, int64_t target) {
 	modePath->vertex_list_length = pathVertexCount;
 	modePath->vertex_list = (int64_t*) calloc(pathVertexCount, sizeof(int64_t));
 	paths[inputModeCount - 1] = modePath;
-	pr = SearchRecordByVertexId(target, pathRecordTable[inputModeCount - 1],
+	pr = searchRecordByVertexId(target, pathRecordTable[inputModeCount - 1],
 			pathRecordCountArray[inputModeCount - 1]);
 	j = 1;
 	while (pr->parent_vertex_id != pr->vertex_id) {
 		paths[inputModeCount - 1]->vertex_list[pathVertexCount - j] = pr->vertex_id;
 		j++;
-		pr = SearchRecordByVertexId(pr->parent_vertex_id,
+		pr = searchRecordByVertexId(pr->parent_vertex_id,
 				pathRecordTable[inputModeCount - 1],
 				pathRecordCountArray[inputModeCount - 1]);
 	}
@@ -204,35 +215,32 @@ Path** GetFinalPath(int64_t source, int64_t target) {
 	
 	for (i = inputModeCount - 2; i >= 0; i--) {
 		pathVertexCount = 1;
-		//printf("Mode %d\n", i);
-		int64_t switchFromId = SearchSwitchPointByToId(pr->vertex_id, 
+		int64_t switchFromId = searchSwitchPointByToId(pr->vertex_id, 
 		        switchpointsArr[i], switchpointCounts[i])->from_vertex_id;
-		pr = SearchRecordByVertexId(switchFromId, pathRecordTable[i],
+		pr = searchRecordByVertexId(switchFromId, pathRecordTable[i],
 				pathRecordCountArray[i]);
 		int64_t switchpointId = pr->vertex_id;
-		//printf("%s\n", pr->id);
 		while (pr->parent_vertex_id != pr->vertex_id) {
-			pr = SearchRecordByVertexId(pr->parent_vertex_id, pathRecordTable[i], 
+			pr = searchRecordByVertexId(pr->parent_vertex_id, pathRecordTable[i], 
 			        pathRecordCountArray[i]);
 			if (pr == NULL) {
 				// no path found
 				DisposePaths(paths);
 				return NULL;
 			}
-			//printf("%s\n", pr->id);
 			pathVertexCount++;
 		}
 		Path* modePath = (Path*) malloc(sizeof(Path));
 		modePath->vertex_list_length = pathVertexCount;
 		modePath->vertex_list = (int64_t*) calloc(pathVertexCount, sizeof(int64_t));
 		paths[i] = modePath;
-		pr = SearchRecordByVertexId(switchpointId, pathRecordTable[i], 
+		pr = searchRecordByVertexId(switchpointId, pathRecordTable[i], 
 		        pathRecordCountArray[i]);
 		j = 1;
 		while (pr->parent_vertex_id != pr->vertex_id) {
 			paths[i]->vertex_list[pathVertexCount - j] = pr->vertex_id;
 			j++;
-			pr = SearchRecordByVertexId(pr->parent_vertex_id, pathRecordTable[i], 
+			pr = searchRecordByVertexId(pr->parent_vertex_id, pathRecordTable[i], 
 			        pathRecordCountArray[i]);
 		}
 		paths[i]->vertex_list[0] = pr->vertex_id;
@@ -241,7 +249,7 @@ Path** GetFinalPath(int64_t source, int64_t target) {
 }
 
 double GetFinalCost(int64_t target, const char *costField) {
-	extern Graph **graphs;
+	extern ModeGraph **graphs;
 	extern int graphCount;
 	Vertex* targetVertex = BinarySearchVertexById(graphs[graphCount - 1]->vertices, 
 	        0, graphs[graphCount - 1]->vertex_count - 1, target);
@@ -261,7 +269,7 @@ double GetFinalCost(int64_t target, const char *costField) {
 	}
 }
 
-static PathRecorder *SearchRecordByVertexId(int64_t id, PathRecorder **recordList, 
+static PathRecorder *searchRecordByVertexId(int64_t id, PathRecorder **recordList, 
         int recordListLength) {
 	int i = 0;
 	for (i = 0; i < recordListLength; i++)
@@ -272,7 +280,7 @@ static PathRecorder *SearchRecordByVertexId(int64_t id, PathRecorder **recordLis
 	return NULL;
 }
 
-static SwitchPoint *SearchSwitchPointByToId(int64_t id, SwitchPoint** spList, 
+static SwitchPoint *searchSwitchPointByToId(int64_t id, SwitchPoint** spList, 
         int spListLength) {
 	// There will be a potential problem here: 
 	// how to deal with the m:1 relationship with in a switch point?
