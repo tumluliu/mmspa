@@ -18,18 +18,50 @@
 
 #ifndef MODEGRAPH_H_
 #define MODEGRAPH_H_
+
 #include <stdint.h>
 
 #define NNULL (Vertex*)NULL
 #define VERY_FAR 1073741823
 
-static const int PUBLIC_TRANSPORT_MODE_ID = 19;
-static const int WALKING_MODE_ID = 12;
-
 typedef struct Edge Edge;
 typedef struct Vertex Vertex;
 typedef struct ModeGraph ModeGraph;
 typedef struct SwitchPoint SwitchPoint;
+typedef enum MODES MODES;
+
+/* Must be consistent everywhere in the whole multimodal routing application,
+ * as defined in the external db:
+ *
+ *        mode_name       | mode_id 
+ * -----------------------+---------
+ * private_car           |      11
+ * foot                  |      12
+ * underground           |      13
+ * suburban              |      14
+ * tram                  |      15
+ * bus                   |      16
+ * public_transportation |      19
+ * bicycle               |      17
+ * taxi                  |      18
+ *
+ */
+enum MODES {
+    PRIVATE_CAR           = 11,
+    FOOT                  = 12,
+    UNDERGROUND           = 13,
+    SUBURBAN              = 14,
+    TRAM                  = 15,
+    BUS                   = 16,
+    BICYCLE               = 17,
+    TAXI                  = 18,
+    PUBLIC_TRANSPORTATION = 19
+};
+
+/* TOTAL_MODES is 7 instead of 9 because so far the TAXI mode is not considered, 
+ * and the public transport is actually a abstract mode consisting of UNDERGROUND, 
+ * SUBURBAN, TRAM and BUS */
+const int TOTAL_MODES = 7;
 
 struct Edge
 {
@@ -77,8 +109,9 @@ struct SwitchPoint
 	double  speed_factor;
 };
 
-Vertex *SearchVertexById(Vertex **vertexArray, int len, long long id);
-Vertex *BinarySearchVertexById(Vertex **vertexArray, int low, int high, 
-        long long id);
+Vertex *SearchVertexById(Vertex **vertexArray, int len, int64_t id);
+Vertex *BinarySearchVertexById(Vertex **vertexArray, int low, int high, int64_t id);
+
+extern ModeGraph **activeGraphs;
 
 #endif /* MODEGRAPH_H_ */
