@@ -18,11 +18,13 @@
 
 #ifndef  ROUTINGPLAN_INC
 #define  ROUTINGPLAN_INC
+
 #include "modegraph.h"
 
 typedef struct RoutingPlan RoutingPlan;
-/* This is a callback function should be defined by the client */
-typedef int (*VertexValidationChecker)(Vertex* vertexToCheck); 
+/* This is a callback function for checking the validity of a vertex should be 
+ * defined by the client */
+typedef int (*VertexValidationChecker)(Vertex *vertexToCheck); 
 
 struct RoutingPlan
 {
