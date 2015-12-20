@@ -20,7 +20,9 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "parser.h"
+#include "graphassembler.h"
+#include "pathinfo.h"
+#include "routingplan.h"
 
 void CreateRoutingPlan(int modeCount, int publicModeCount);
 
@@ -28,21 +30,21 @@ void SetModeListItem(int index, int modeId);
 
 void SetPublicTransitModeSetItem(int index, int modeId);
 
-void SetSwitchConditionListItem(int index, const char* spCondition);
+void SetSwitchConditionListItem(int index, const char *spCondition);
 
 void SetSwitchingConstraint(int index, VertexValidationChecker callback);
 
 void SetTargetConstraint(VertexValidationChecker callback);
 
-void SetCostFactor(const char* costFactor);
+void SetCostFactor(const char *costFactor);
 
-void MultimodalTwoQ(long long source);
+void MultimodalTwoQ(int64_t source);
 
-Path** GetFinalPath(long long source, long long target);
+Path **GetFinalPath(int64_t source, int64_t target);
 
-double GetFinalCost(long long target, const char* costField);
+double GetFinalCost(int64_t target, const char *costField);
 
-void DisposePaths(Path** paths);
+void DisposePaths(Path **paths);
 
 void Dispose();
 
