@@ -132,7 +132,8 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgincludedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libmmspa4pg_la_DEPENDENCIES =
-am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo multimodal-twoq.lo parser.lo
+am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo multimodal-twoq.lo \
+	graphassembler.lo
 libmmspa4pg_la_OBJECTS = $(am_libmmspa4pg_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -258,17 +259,17 @@ OTOOL64 = :
 PACKAGE = mmspa4pg
 PACKAGE_BUGREPORT = nudtlliu@gmail.com
 PACKAGE_NAME = mmspa4pg
-PACKAGE_STRING = mmspa4pg 1.0
+PACKAGE_STRING = mmspa4pg 2.0
 PACKAGE_TARNAME = mmspa4pg
 PACKAGE_URL = 
-PACKAGE_VERSION = 1.0
+PACKAGE_VERSION = 2.0
 PATH_SEPARATOR = :
 RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = strip
-VERSION = 1.0
+VERSION = 2.0
 abs_builddir = /Users/user/Projects/mmspa/src
 abs_srcdir = /Users/user/Projects/mmspa/src
 abs_top_builddir = /Users/user/Projects/mmspa
@@ -322,12 +323,14 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 lib_LTLIBRARIES = libmmspa4pg.la
-libmmspa4pg_la_SOURCES = mmspa4pg.c multimodal-twoq.c parser.c
+libmmspa4pg_la_SOURCES = mmspa4pg.c multimodal-twoq.c graphassembler.c
 libmmspa4pg_la_LDFLAGS = -version-info 1:0:0
 libmmspa4pg_la_LIBADD = -lpq
 pkginclude_HEADERS = $(top_srcdir)/include/mmspa4pg.h \
-					 $(top_srcdir)/include/parser.h \
-					 $(top_srcdir)/include/types_graph.h
+					 $(top_srcdir)/include/graphassembler.h \
+					 $(top_srcdir)/include/modegraph.h \
+					 $(top_srcdir)/include/routingplan.h \
+					 $(top_srcdir)/include/pathinfo.h
 
 all: all-am
 
@@ -407,9 +410,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+include ./$(DEPDIR)/graphassembler.Plo
 include ./$(DEPDIR)/mmspa4pg.Plo
 include ./$(DEPDIR)/multimodal-twoq.Plo
-include ./$(DEPDIR)/parser.Plo
 
 .c.o:
 	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
