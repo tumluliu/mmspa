@@ -132,8 +132,8 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgincludedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libmmspa4pg_la_DEPENDENCIES =
-am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo multimodal-twoq.lo \
-	graphassembler.lo
+am_libmmspa4pg_la_OBJECTS = mmspa4pg.lo routingplan.lo \
+	routingresult.lo mmtwoq.lo graphassembler.lo
 libmmspa4pg_la_OBJECTS = $(am_libmmspa4pg_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -323,14 +323,19 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 lib_LTLIBRARIES = libmmspa4pg.la
-libmmspa4pg_la_SOURCES = mmspa4pg.c multimodal-twoq.c graphassembler.c
-libmmspa4pg_la_LDFLAGS = -version-info 1:0:0
+libmmspa4pg_la_SOURCES = mmspa4pg.c \
+						 routingplan.c \
+						 routingresult.c \
+						 mmtwoq.c \
+						 graphassembler.c
+
+libmmspa4pg_la_LDFLAGS = -version-info 2:0:0
 libmmspa4pg_la_LIBADD = -lpq
 pkginclude_HEADERS = $(top_srcdir)/include/mmspa4pg.h \
 					 $(top_srcdir)/include/graphassembler.h \
 					 $(top_srcdir)/include/modegraph.h \
 					 $(top_srcdir)/include/routingplan.h \
-					 $(top_srcdir)/include/pathinfo.h
+					 $(top_srcdir)/include/routingresult.h
 
 all: all-am
 
@@ -412,7 +417,9 @@ distclean-compile:
 
 include ./$(DEPDIR)/graphassembler.Plo
 include ./$(DEPDIR)/mmspa4pg.Plo
-include ./$(DEPDIR)/multimodal-twoq.Plo
+include ./$(DEPDIR)/mmtwoq.Plo
+include ./$(DEPDIR)/routingplan.Plo
+include ./$(DEPDIR)/routingresult.Plo
 
 .c.o:
 	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
