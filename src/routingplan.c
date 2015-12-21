@@ -5,7 +5,6 @@
  *
  *    Description:  Implementations of multimodal routing plan processing
  *
- *        Version:  2.0
  *        Created:  2015/12/21 17时24分30秒
  *       Revision:  none
  *       Compiler:  gcc
