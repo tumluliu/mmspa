@@ -5,7 +5,6 @@
  *
  *    Description:  Multimodal routing plan data structures
  *
- *        Version:  1.0
  *        Created:  2015/12/18 11时58分31秒
  *       Revision:  none
  *       Compiler:  gcc
@@ -19,6 +18,7 @@
 #ifndef  ROUTINGPLAN_INC
 #define  ROUTINGPLAN_INC
 
+#include <stdlib.h>
 #include "modegraph.h"
 
 typedef struct RoutingPlan RoutingPlan;
@@ -37,5 +37,13 @@ struct RoutingPlan
 	VertexValidationChecker target_constraint;
 	const char              *cost_factor;
 };
+
+void CreateRoutingPlan(int modeCount, int publicModeCount);
+void SetModeListItem(int index, int modeId);
+void SetPublicTransitModeSetItem(int index, int modeId);
+void SetSwitchConditionListItem(int index, const char *spCondition);
+void SetSwitchingConstraint(int index, VertexValidationChecker callback);
+void SetTargetConstraint(VertexValidationChecker callback);
+void DisposeRoutingPlan();
 
 #endif   /* ----- #ifndef ROUTINGPLAN_INC  ----- */
