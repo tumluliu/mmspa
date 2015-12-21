@@ -6,7 +6,6 @@
  *    Description:  Read multimodal graph data from external data source,
  *    assemble multimodal graph set on the fly for each routing plan.
  *
- *        Version:  1.0
  *        Created:  2009/03/18 09时59分45秒
  *       Revision:  none
  *       Compiler:  gcc
@@ -27,7 +26,12 @@
 int *switchpointCounts = NULL;
 int graphCount = 0;
 
-static void exit_nicely(PGconn *conn) {
+static void disposeGraphs();
+static void disposeSwitchPoints();
+extern void DisposeRoutingPlan();
+extern void DisposeResultPathTable();
+
+static void exitPostgreNicely(PGconn *conn) {
     PQfinish(conn);
     exit(1);
 }
@@ -278,7 +282,7 @@ static int getVertexCount(const char *vertexFilterCond) {
         fprintf(stderr, "query in vertices table failed: %s", 
                 PQerrorMessage(conn));
         PQclear(vertexResults);
-        exit_nicely(conn);
+        exitPostgreNicely(conn);
     }
     int vc = atoi(PQgetvalue(vertexResults, 0, 0));
 #ifdef DEBUG
@@ -297,7 +301,7 @@ static void retrieveGraphData(const char *graphFilterCond, Vertex **vertices,
         fprintf(stderr, "query in edges and vertices table failed: %s", 
                 PQerrorMessage(conn));
         PQclear(graphResults);
-        exit_nicely(conn);
+        exitPostgreNicely(conn);
     }
 #ifdef DEBUG
     printf("[DEBUG] Reading graphs... ");
@@ -400,7 +404,7 @@ static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCoun
         fprintf(stderr, "query in switch_points table failed: %s", 
                 PQerrorMessage(conn));
         PQclear(switchpointResults);
-        exit_nicely(conn);
+        exitPostgreNicely(conn);
     }
     *spCount = PQntuples(switchpointResults);
 #ifdef DEBUG
@@ -537,4 +541,58 @@ int AssembleGraphs() {
     }
 
     return EXIT_SUCCESS;
+}
+
+void Dispose() {
+	disposeGraphs();
+	disposeSwitchPoints();
+	// FIXME: wierd... why not disposing result path table in DisposePaths()?
+	DisposeResultPathTable();
+	DisposeRoutingPlan();
+}
+
+static void disposeGraphs() {
+	extern ModeGraph **graphs;
+	extern int graphCount;
+	int i = 0;
+	for (i = 0; i < graphCount; i++) {
+		int j = 0;
+		for (j = 0; j < graphs[i]->vertex_count; j++) {
+			Edge* current = graphs[i]->vertices[j]->outgoing;
+			while (current != NULL) {
+				Edge* temp = current->adjNext;
+				free(current);
+				current = NULL;
+				current = temp;
+			}
+			graphs[i]->vertices[j]->outgoing = NULL;
+			free(graphs[i]->vertices[j]);
+			graphs[i]->vertices[j] = NULL;
+		}
+		free(graphs[i]);
+		graphs[i] = NULL;
+	}
+	free(graphs);
+	graphs = NULL;
+}
+
+static void disposeSwitchPoints() {
+	extern SwitchPoint*** switchpointsArr;
+	extern int* switchpointCounts;
+	extern int graphCount;
+	if (graphCount > 1) {
+		int i = 0, j = 0;
+		for (i = 0; i < graphCount - 1; i++) {
+			for (j = 0; j < switchpointCounts[i]; j++) {
+				free(switchpointsArr[i][j]);
+				switchpointsArr[i][j] = NULL;
+			}
+			free(switchpointsArr[i]);
+			switchpointsArr[i] = NULL;
+		}
+		free(switchpointCounts);
+		free(switchpointsArr);
+		switchpointsArr = NULL;
+		switchpointCounts = NULL;
+	}
 }
