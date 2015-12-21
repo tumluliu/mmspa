@@ -1,8 +1,19 @@
 /*
- * multimodal-twoq.c
+ * =====================================================================================
  *
- *  Created on: May 4, 2009
- *      Author: LIU Lu
+ *       Filename:  multimodal-twoq.c
+ *
+ *    Description:  Implementation of Multimodal Two-Q path finding algorithm
+ *
+ *        Version:  2.0
+ *        Created:  2009/05/04 16时18分07秒
+ *       Revision:  none
+ *       Compiler:  gcc
+ *
+ *         Author:  Lu LIU (lliu), nudtlliu@gmail.com
+ *   Organization:  LfK@TUM
+ *
+ * =====================================================================================
  */
 #include "../include/mmspa4pg.h"
 
@@ -66,18 +77,18 @@
     vertex->status = IN_QUEUE;\
 }\
 
-extern char* GetSwitchPoint(const char* mode1, const char* mode2);
+extern char *GetSwitchPoint(const char *mode1, const char *mode2);
 extern void DisposeResultPathTable();
 
-void TwoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,	
+static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,	
         PathRecorder ***prev, const char *costFactor, 
         VertexValidationChecker checkConstraint);
 void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
-        int spListLength, VertexValidationChecker checkConstraint, long long source, 
+        int spListLength, VertexValidationChecker checkConstraint, int64_t source, 
         Vertex **begin, Vertex **end, Vertex **entry, PathRecorder ***prev, 
         const char *costFactor);
 
-void MultimodalTwoQ(long long source) {
+void MultimodalTwoQ(int64_t source) {
     extern ModeGraph **graphs;
     extern SwitchPoint ***switchpointsArr;
     extern int *switchpointCounts;
@@ -114,16 +125,16 @@ void MultimodalTwoQ(long long source) {
                     plan->cost_factor);
 #ifdef DEBUG
         printf("[DEBUG] done! \n");
-        printf("[DEBUG] start doing TwoQSearch... \n");
+        printf("[DEBUG] start doing twoQSearch... \n");
 #endif
-        TwoQSearch(graphs[i], &begin, &end, &entry, &pathRecordArray, 
+        twoQSearch(graphs[i], &begin, &end, &entry, &pathRecordArray, 
                 plan->cost_factor, plan->target_constraint);
         pathRecordTable[i] = pathRecordArray;
     }
 }
 
 void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
-        int spListLength, VertexValidationChecker checkConstraint,  long long source, 
+        int spListLength, VertexValidationChecker checkConstraint,  int64_t source, 
         Vertex **begin, Vertex **end, Vertex **entry, PathRecorder ***prev, 
         const char *costFactor) {
     int i = 0;
@@ -236,7 +247,7 @@ void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList,
 #endif
 }
 
-void TwoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,
+static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,
         PathRecorder ***prev, const char *costFactor, 
         VertexValidationChecker checkConstraint) {
     double costNew;
@@ -244,7 +255,7 @@ void TwoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,
     Edge *edge_ij;
     int edgeCount = 0, i = 0, vertexCount = 0;
 #ifdef DEBUG
-    printf("[DEBUG] TwoQSearch started. \n");
+    printf("[DEBUG] twoQSearch started. \n");
 #endif
     while ((*begin) != NNULL) {
         // EXTRACT_FIRST(vertexFrom)
@@ -331,7 +342,7 @@ void TwoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,
             (*prev)[i]->parent_vertex_id = g->vertices[i]->parent->id;
     }
 #ifdef DEBUG
-    printf("[DEBUG] TwoQSearch finished. \n");
+    printf("[DEBUG] twoQSearch finished. \n");
 #endif
 }
 
