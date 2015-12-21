@@ -6,7 +6,6 @@
  *    Description:  Declarations of public functions and variables for
  *                  multimodal graph assembler
  *
- *        Version:  2.0
  *        Created:  2009/03/23 10时36分39秒
  *       Revision:  none
  *       Compiler:  gcc
