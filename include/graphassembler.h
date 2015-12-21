@@ -6,7 +6,7 @@
  *    Description:  Declarations of public functions and variables for
  *                  multimodal graph assembler
  *
- *        Version:  1.0
+ *        Version:  2.0
  *        Created:  2009/03/23 10时36分39秒
  *       Revision:  none
  *       Compiler:  gcc
@@ -22,14 +22,12 @@
 
 #include "modegraph.h"
 
-int Init(const char *pg_conn_str);
-
-int LoadGraphFromDb(const char *pg_conn_str);
-
+int Init(const char *pgConnStr);
+int LoadGraphFromDb(const char *pgConnStr);
 /* This function is obsoleted, but is reserved for the moment for the sake of
  * compatability */
 int Parse();
-
 int AssembleGraphs();
+void Dispose();
 
 #endif /* GRAPHASSEMBLER_H_ */
