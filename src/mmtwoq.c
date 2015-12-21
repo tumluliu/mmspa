@@ -1,11 +1,10 @@
 /*
  * =====================================================================================
  *
- *       Filename:  multimodal-twoq.c
+ *       Filename:  mmtwoq.c
  *
  *    Description:  Implementation of Multimodal Two-Q path finding algorithm
  *
- *        Version:  2.0
  *        Created:  2009/05/04 16时18分07秒
  *       Revision:  none
  *       Compiler:  gcc
@@ -15,75 +14,19 @@
  *
  * =====================================================================================
  */
-#include "../include/mmspa4pg.h"
+#include "../include/mmtwoq.h"
 
 /* status of vertex regarding to queue */
 #define UNREACHED   -1
 #define IN_QUEUE     0
 #define WAS_IN_QUEUE 1
 
-#define INIT_QUEUE(source)\
-{\
-    begin = end = source;\
-    entry = NNULL;\
-    source->next = NNULL;\
-    source->status = IN_QUEUE;\
-}\
-
-#define NONEMPTY_QUEUE           ( begin != NNULL )
-
-#define NODE_IN_QUEUE(vertex)      ( vertex->status == IN_QUEUE )
-
-#define NODE_WAS_IN_QUEUE(vertex)  ( vertex->status == WAS_IN_QUEUE )
-
-#define EXTRACT_FIRST(vertex)\
-{\
-    vertex = begin;\
-    vertex->status = WAS_IN_QUEUE;\
-    if (begin == entry)\
-    entry = NNULL;\
-    begin = begin->next;\
-}\
-
-#define INSERT_TO_ENTRY(vertex)\
-{\
-    if (entry != NNULL)\
-    {\
-        vertex->next = entry->next;\
-        entry->next = vertex;\
-        if (entry == end)\
-        end = vertex;\
-    }\
-    else\
-    {\
-        if (begin == NNULL)\
-        end = vertex;\
-        vertex->next = begin;\
-        begin = vertex;\
-    }\
-    vertex->status = IN_QUEUE;\
-    entry = vertex;\
-}\
-
-#define INSERT_TO_BACK(vertex)\
-{\
-    if (begin == NNULL)\
-    begin = vertex;\
-    else\
-    end->next = vertex;\
-    \
-    end = vertex;\
-    end->next = NNULL;\
-    vertex->status = IN_QUEUE;\
-}\
-
-extern char *GetSwitchPoint(const char *mode1, const char *mode2);
 extern void DisposeResultPathTable();
 
 static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entry,	
         PathRecorder ***prev, const char *costFactor, 
         VertexValidationChecker checkConstraint);
-void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
+static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
         int spListLength, VertexValidationChecker checkConstraint, int64_t source, 
         Vertex **begin, Vertex **end, Vertex **entry, PathRecorder ***prev, 
         const char *costFactor);
@@ -113,13 +56,13 @@ void MultimodalTwoQ(int64_t source) {
         PathRecorder **pathRecordArray = (PathRecorder**) calloc(
                 pathRecordCountArray[i], sizeof(PathRecorder*));
 #ifdef DEBUG
-        printf("[DEBUG] start doing MultimodalTwoQInit... \n");
+        printf("[DEBUG] start doing multimodalTwoQInit... \n");
 #endif
         if (i == 0)
-            MultimodalTwoQInit(graphs[i], NULL, NULL, 0, NULL, source, &begin, &end,
+            multimodalTwoQInit(graphs[i], NULL, NULL, 0, NULL, source, &begin, &end,
                     &entry, &pathRecordArray, plan->cost_factor);
         else
-            MultimodalTwoQInit(graphs[i], graphs[i-1], switchpointsArr[i-1], 
+            multimodalTwoQInit(graphs[i], graphs[i-1], switchpointsArr[i-1], 
                     switchpointCounts[i-1], plan->switch_constraint_list[i-1],
                     source, &begin, &end, &entry, &pathRecordArray, 
                     plan->cost_factor);
@@ -133,7 +76,7 @@ void MultimodalTwoQ(int64_t source) {
     }
 }
 
-void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
+static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList, 
         int spListLength, VertexValidationChecker checkConstraint,  int64_t source, 
         Vertex **begin, Vertex **end, Vertex **entry, PathRecorder ***prev, 
         const char *costFactor) {
@@ -142,7 +85,7 @@ void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList,
     Vertex *src;
 
 #ifdef DEBUG
-    printf("[DEBUG] MultimodalTwoQInit started. \n");
+    printf("[DEBUG] multimodalTwoQInit started. \n");
     printf("[DEBUG] traversely init vertices... \n");
     printf("[DEBUG] number of vertices: %d \n", v_number);
 #endif
@@ -243,7 +186,7 @@ void MultimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **spList,
 #endif
     }
 #ifdef DEBUG
-    printf("[DEBUG] MultimodalTwoQInit finished. \n");
+    printf("[DEBUG] multimodalTwoQInit finished. \n");
 #endif
 }
 
