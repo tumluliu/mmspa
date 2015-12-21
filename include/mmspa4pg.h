@@ -5,7 +5,6 @@
  *
  *    Description:  Exported API of multimodal shortest path algorithms library
  *
- *        Version:  2.0
  *        Created:  2015/12/16 10时35分19秒
  *       Revision:  none
  *       Compiler:  gcc
