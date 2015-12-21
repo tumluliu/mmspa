@@ -5,7 +5,6 @@
  *
  *    Description:  ADT declarations of multimodal graph and its components
  *
- *        Version:  1.0
  *        Created:  2009/02/23 10时44分26秒
  *       Revision:  none
  *       Compiler:  gcc
@@ -20,6 +19,8 @@
 #define MODEGRAPH_H_
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define NNULL (Vertex*)NULL
 #define VERY_FAR 1073741823
