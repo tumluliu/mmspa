@@ -14,6 +14,8 @@
  *
  * =====================================================================================
  */
+
+#include <stdio.h>
 #include "../include/mmtwoq.h"
 
 /* status of vertex regarding to queue */
@@ -32,7 +34,7 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
         const char *costFactor);
 
 void MultimodalTwoQ(int64_t source) {
-    extern ModeGraph **graphs;
+    extern ModeGraph **activeGraphs;
     extern SwitchPoint ***switchpointsArr;
     extern int *switchpointCounts;
     extern PathRecorder ***pathRecordTable;
@@ -52,25 +54,25 @@ void MultimodalTwoQ(int64_t source) {
     pathRecordCountArray = (int*) calloc(plan->mode_count, sizeof(int));
     inputModeCount = plan->mode_count;
     for (i = 0; i < plan->mode_count; i++) {
-        pathRecordCountArray[i] = graphs[i]->vertex_count;
+        pathRecordCountArray[i] = activeGraphs[i]->vertex_count;
         PathRecorder **pathRecordArray = (PathRecorder**) calloc(
                 pathRecordCountArray[i], sizeof(PathRecorder*));
 #ifdef DEBUG
         printf("[DEBUG] start doing multimodalTwoQInit... \n");
 #endif
         if (i == 0)
-            multimodalTwoQInit(graphs[i], NULL, NULL, 0, NULL, source, &begin, &end,
-                    &entry, &pathRecordArray, plan->cost_factor);
+            multimodalTwoQInit(activeGraphs[i], NULL, NULL, 0, NULL, source, &begin, 
+                    &end, &entry, &pathRecordArray, plan->cost_factor);
         else
-            multimodalTwoQInit(graphs[i], graphs[i-1], switchpointsArr[i-1], 
-                    switchpointCounts[i-1], plan->switch_constraint_list[i-1],
-                    source, &begin, &end, &entry, &pathRecordArray, 
-                    plan->cost_factor);
+            multimodalTwoQInit(activeGraphs[i], activeGraphs[i-1], 
+                    switchpointsArr[i-1], switchpointCounts[i-1], 
+                    plan->switch_constraint_list[i-1], source, &begin, &end, &entry, 
+                    &pathRecordArray, plan->cost_factor);
 #ifdef DEBUG
         printf("[DEBUG] done! \n");
         printf("[DEBUG] start doing twoQSearch... \n");
 #endif
-        twoQSearch(graphs[i], &begin, &end, &entry, &pathRecordArray, 
+        twoQSearch(activeGraphs[i], &begin, &end, &entry, &pathRecordArray, 
                 plan->cost_factor, plan->target_constraint);
         pathRecordTable[i] = pathRecordArray;
     }

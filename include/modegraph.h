@@ -112,6 +112,4 @@ struct SwitchPoint
 Vertex *SearchVertexById(Vertex **vertexArray, int len, int64_t id);
 Vertex *BinarySearchVertexById(Vertex **vertexArray, int low, int high, int64_t id);
 
-extern ModeGraph **activeGraphs;
-
 #endif /* MODEGRAPH_H_ */

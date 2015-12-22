@@ -23,6 +23,9 @@
 #include "../include/graphassembler.h"
 #include "../include/routingplan.h"
 
+/* Global variable definitions */
+ModeGraph **activeGraphs = NULL;
+SwitchPoint ***switchpointsArr = NULL;
 int *switchpointCounts = NULL;
 int graphCount = 0;
 
@@ -38,7 +41,7 @@ static void exitPostgreNicely(PGconn *conn) {
 
 PGconn* conn;
 
-static int connect_db(const char *pgConnString) {
+static int connectPostgre(const char *pgConnString) {
     conn = PQconnectdb(pgConnString);
     if (PQstatus(conn) != CONNECTION_OK) {
         printf("Connection to database failed: %s", PQerrorMessage(conn));
@@ -47,7 +50,7 @@ static int connect_db(const char *pgConnString) {
     return EXIT_SUCCESS;
 }
 
-static void disconnect_db() {
+static void disconnectPostgre() {
     PQfinish(conn);
 }
 
@@ -57,7 +60,6 @@ static void loadAllGraphs() {
 
 }
 
-static SwitchPoint ***switchpointsArr;
 
 static int initGraphs(int graphCount) {
     activeGraphs = (ModeGraph **) calloc(graphCount, sizeof(ModeGraph*));
@@ -286,7 +288,7 @@ static int getVertexCount(const char *vertexFilterCond) {
     }
     int vc = atoi(PQgetvalue(vertexResults, 0, 0));
 #ifdef DEBUG
-    printf("[DEBUG] found vertex %d\n", vertexCount);
+    printf("[DEBUG] found vertex %d\n", vc);
 #endif
     PQclear(vertexResults);
     return vc;
@@ -408,7 +410,7 @@ static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCoun
     }
     *spCount = PQntuples(switchpointResults);
 #ifdef DEBUG
-    printf("[DEBUG] Found switch points: %d\n", publicSwitchpointCount);
+    printf("[DEBUG] Found switch points: %d\n", *spCount);
     printf("[DEBUG] Reading and parsing switch points...");
 #endif
     readSwitchPoints(switchpointResults, &publicSPs);
@@ -485,16 +487,23 @@ static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCon
     }
 }
 
-int LoadGraphFromDb(const char* pg_conn_str) 
-{
+int LoadGraphFromDb(const char *pgConnStr) {
     /* Step 1: connect to database 
      * Step 2: read the series of graph data via SQL 
-     * Step 3: read the switch points via SQL */
+     * Step 3: read the switch points via SQL ?? */
     /* return 0 if everything succeeds, otherwise an error code */
-    int ret = connect_db(pg_conn_str);
-    assert(ret);
+    assert(connectPostgre(pgConnStr));
     loadAllGraphs();
+    disconnectPostgre();
     return 0;
+}
+
+int ConnectDB(const char *pgConnStr) {
+    return connectPostgre(pgConnStr);
+}
+
+void DisconnectDB() {
+    disconnectPostgre();
 }
 
 int Parse() {
@@ -552,34 +561,29 @@ void Dispose() {
 }
 
 static void disposeGraphs() {
-	extern ModeGraph **graphs;
-	extern int graphCount;
 	int i = 0;
 	for (i = 0; i < graphCount; i++) {
 		int j = 0;
-		for (j = 0; j < graphs[i]->vertex_count; j++) {
-			Edge* current = graphs[i]->vertices[j]->outgoing;
+		for (j = 0; j < activeGraphs[i]->vertex_count; j++) {
+			Edge* current = activeGraphs[i]->vertices[j]->outgoing;
 			while (current != NULL) {
 				Edge* temp = current->adjNext;
 				free(current);
 				current = NULL;
 				current = temp;
 			}
-			graphs[i]->vertices[j]->outgoing = NULL;
-			free(graphs[i]->vertices[j]);
-			graphs[i]->vertices[j] = NULL;
+			activeGraphs[i]->vertices[j]->outgoing = NULL;
+			free(activeGraphs[i]->vertices[j]);
+			activeGraphs[i]->vertices[j] = NULL;
 		}
-		free(graphs[i]);
-		graphs[i] = NULL;
+		free(activeGraphs[i]);
+		activeGraphs[i] = NULL;
 	}
-	free(graphs);
-	graphs = NULL;
+	free(activeGraphs);
+	activeGraphs = NULL;
 }
 
 static void disposeSwitchPoints() {
-	extern SwitchPoint*** switchpointsArr;
-	extern int* switchpointCounts;
-	extern int graphCount;
 	if (graphCount > 1) {
 		int i = 0, j = 0;
 		for (i = 0; i < graphCount - 1; i++) {

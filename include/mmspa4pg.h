@@ -34,6 +34,10 @@ void SetCostFactor(const char *costFactor);
 int AssembleGraphs();
 /* FIXME: Just for compatability. This function is identical to AssembleGraphs */
 int Parse(); 
+/* FIXME: Just for compatability. These two database connecting/disconnecting
+ * functions should be invisible to clients. */
+int ConnectDB(const char *pgConnStr);
+void DisconnectDB();
 /* Functions of multimodal shortest path algorithms */
 Path **FindMultimodalPath(int64_t source, int64_t target);
 void MultimodalTwoQ(int64_t source);

@@ -23,10 +23,12 @@
 
 int Init(const char *pgConnStr);
 int LoadGraphFromDb(const char *pgConnStr);
-/* This function is obsoleted, but is reserved for the moment for the sake of
- * compatability */
-int Parse();
 int AssembleGraphs();
 void Dispose();
+/* The following functions are obsoleted, but is reserved for the moment for the 
+ * sake of compatability */
+int Parse();
+int ConnectDB(const char *pgConnStr);
+void DisconnectDB();
 
 #endif /* GRAPHASSEMBLER_H_ */

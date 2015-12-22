@@ -215,7 +215,7 @@ AUTOMAKE = ${SHELL} /Users/user/Projects/mmspa/missing automake-1.15
 AWK = awk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS =  -I/usr/local/include
+CFLAGS =  -I/usr/local/include -DDEBUG
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo

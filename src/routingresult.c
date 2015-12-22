@@ -18,7 +18,7 @@
 
 #include "../include/routingresult.h"
 
-PathRecorder*** pathRecordTable = NULL;
+PathRecorder ***pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;
 int inputModeCount = 0;
 
@@ -116,10 +116,11 @@ void DisposeResultPathTable() {
 }
 
 double GetFinalCost(int64_t target, const char *costField) {
-	extern ModeGraph **graphs;
+	extern ModeGraph **activeGraphs;
 	extern int graphCount;
-	Vertex *targetVertex = BinarySearchVertexById(graphs[graphCount - 1]->vertices, 
-	        0, graphs[graphCount - 1]->vertex_count - 1, target);
+	Vertex *targetVertex = BinarySearchVertexById(
+	        activeGraphs[graphCount - 1]->vertices, 0, 
+	        activeGraphs[graphCount - 1]->vertex_count - 1, target);
 	if (targetVertex == NNULL)
 		return -1;
 	else {
