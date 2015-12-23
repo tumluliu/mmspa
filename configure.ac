@@ -1,8 +1,8 @@
 AC_INIT([mmspa4pg], [2.0], [nudtlliu@gmail.com])
 #CFLAGS="-arch i386"
 CFLAGS="$CFLAGS -I/usr/local/include"
-# option for enabling debug 
-CFLAGS="$CFLAGS -DDEBUG"
+# option for enabling debug mode
+#CFLAGS="$CFLAGS -DDEBUG -g3 -O0"
 LDFLAGS="$LDFLAGS -L/usr/local/lib"
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_PROG_CC
