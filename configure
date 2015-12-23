@@ -2211,8 +2211,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 #CFLAGS="-arch i386"
 CFLAGS="$CFLAGS -I/usr/local/include"
-# option for enabling debug
-CFLAGS="$CFLAGS -DDEBUG"
+# option for enabling debug mode
+#CFLAGS="$CFLAGS -DDEBUG -g3 -O0"
 LDFLAGS="$LDFLAGS -L/usr/local/lib"
 am__api_version='1.15'
 
