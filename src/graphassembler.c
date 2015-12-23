@@ -29,17 +29,128 @@ SwitchPoint ***switchpointsArr = NULL;
 int *switchpointCounts = NULL;
 int graphCount = 0;
 
+/* Private function declarations */
+static int connectPostgre(const char *pgConnString); 
+static void disconnectPostgre();
+static void exitPostgreNicely(PGconn *conn);
+static void loadAllGraphs();
+static int initGraphs(int graphCount);
+static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount, 
+        const char *costFactor);
+static void readSwitchPoints(PGresult *res, SwitchPoint ***switchpointArrayAddr);
+static void combineGraphs(Vertex **vertexArray, int vertexCount, 
+        SwitchPoint **switchpointArray, int switchpointCount);
+static int validateGraph(ModeGraph *g);
+static int getVertexCount(const char *vertexFilterCond);
+static void retrieveGraphData(const char *graphFilterCond, Vertex ***vertices, 
+        int vertexCount, RoutingPlan *p);
+static char *constructPublicModeClause(RoutingPlan *p);
+static void constructFilterConditions(RoutingPlan *p, int modeId, 
+        char *vertexFilterCond, char *graphFilterCond);
+static void addPublicSwitchClauseToFilter(RoutingPlan *p, char *switchFilterCond);
+static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCount, 
+        SwitchPoint **publicSPs);
+static void constructPublicModeGraph(RoutingPlan *p, char *switchFilterCond, 
+        Vertex **vertices, int vertexCount);
+static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCond, 
+        int i);
 static void disposeGraphs();
 static void disposeSwitchPoints();
+
+/* External function declarations */
 extern void DisposeRoutingPlan();
 extern void DisposeResultPathTable();
 
-static void exitPostgreNicely(PGconn *conn) {
-    PQfinish(conn);
-    exit(1);
+int LoadGraphFromDb(const char *pgConnStr) {
+    /* Step 1: connect to database 
+     * Step 2: read the series of graph data via SQL 
+     * Step 3: read the switch points via SQL ?? */
+    /* return 0 if everything succeeds, otherwise an error code */
+    assert(connectPostgre(pgConnStr));
+    loadAllGraphs();
+    disconnectPostgre();
+    return 0;
 }
 
-PGconn* conn;
+int ConnectDB(const char *pgConnStr) {
+    return connectPostgre(pgConnStr);
+}
+
+void DisconnectDB() {
+    disconnectPostgre();
+}
+
+int Parse() {
+    return AssembleGraphs();
+}
+
+int AssembleGraphs() {
+    extern RoutingPlan *plan;	
+#ifdef DEBUG
+    printf("[DEBUG] init multimodal graphs\n");
+#endif
+    if (initGraphs(plan->mode_count) == EXIT_FAILURE) {
+        printf("initialization of graphs failed\n");
+        return EXIT_FAILURE;
+    }
+    int i = 0;
+    graphCount = plan->mode_count;
+    for (i = 0; i < plan->mode_count; i++) {
+        int modeId = plan->mode_id_list[i];
+        int vertexCount = 0;
+        char switchFilterCondition[1024];
+        char vertexFilterCondition[512];
+        char graphFilterCondition[1024];
+        Vertex **vertices = NULL;
+        ModeGraph *tmpGraph = (ModeGraph*) malloc(sizeof(ModeGraph));
+        tmpGraph->id = modeId;
+        constructFilterConditions(plan, modeId, vertexFilterCondition, 
+                graphFilterCondition);
+        vertexCount = getVertexCount(vertexFilterCondition);
+#ifdef DEBUG
+        printf("[DEBUG] ::AssembleGraphs retrieve mode graph from database \n");
+#endif
+        retrieveGraphData(graphFilterCondition, &vertices, vertexCount, plan);
+#ifdef DEBUG
+        printf("[DEBUG] ::AssembleGraphs construct mode graph for public transit \n");
+#endif
+        if (modeId == PUBLIC_TRANSPORTATION) 
+            constructPublicModeGraph(plan, switchFilterCondition, vertices, 
+                    vertexCount);
+        tmpGraph->vertices = vertices;
+#ifdef DEBUG
+        printf("[DEBUG] ::AssembleGraphs assign vertices to tmpGraph \n");
+        printf("[DEBUG] First vertex in tmpGraph: %lld\n", tmpGraph->vertices[0]->id);
+#endif
+        tmpGraph->vertex_count = vertexCount;
+#ifdef DEBUG
+        printf("[DEBUG] Validate the constructed graph...\n");
+#endif
+        if (validateGraph(tmpGraph) == EXIT_FAILURE)
+            return EXIT_FAILURE;
+        activeGraphs[i] = tmpGraph;
+        if (i > 0) {
+            constructSwitchFilterCondition(plan, switchFilterCondition, i);
+            retrieveSwitchPointsFromDb(switchFilterCondition, 
+                    &switchpointCounts[i-1], switchpointsArr[i-1]);
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
+void Dispose() {
+	disposeGraphs();
+	disposeSwitchPoints();
+	// FIXME: wierd... why not disposing result path table in DisposePaths()?
+	DisposeResultPathTable();
+	DisposeRoutingPlan();
+}
+
+/* 
+ * Private function definitions 
+ */
+static PGconn* conn = NULL;
 
 static int connectPostgre(const char *pgConnString) {
     conn = PQconnectdb(pgConnString);
@@ -54,12 +165,16 @@ static void disconnectPostgre() {
     PQfinish(conn);
 }
 
+static void exitPostgreNicely(PGconn *conn) {
+    PQfinish(conn);
+    exit(1);
+}
+
 static ModeGraph graphBase[TOTAL_MODES];
 
 static void loadAllGraphs() {
 
 }
-
 
 static int initGraphs(int graphCount) {
     activeGraphs = (ModeGraph **) calloc(graphCount, sizeof(ModeGraph*));
@@ -76,14 +191,19 @@ static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount,
     /* read the edges and vertices from the query result */
     int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
     recordCount = PQntuples(res);	
+#ifdef DEBUG
+    printf("[DEBUG] ::readGraph, record count is %d\n", recordCount);
+#endif
     *vertexArrayAddr = (Vertex**) calloc(vertexCount, sizeof(Vertex*));
-    Vertex* tmpVertex = NULL;
+    Vertex *tmpVertex = NULL;
     for (i = 0; i < recordCount; i++) {
-        /* fields in the query results:		 * 
-         * vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, vertices.out_degree, edges.mode_id, edges.edge_id
-         * 0,                  1,           2,            3,                  4,                   5,             6
+        /* fields in the query results:
+         * vertices.vertex_id, edges.to_id, edges.length, edges.speed_factor, 
+         * 0,                  1,           2,            3,                  
+         * vertices.out_degree, edges.mode_id
+         * 4,                   5
          */
-        Edge* tmpEdge;
+        Edge *tmpEdge;
         tmpEdge = (Edge*) malloc(sizeof(Edge));
         if (outgoingCursor == 0) {
             // a new group of edge records with the same from_vertex starts...	
@@ -104,7 +224,7 @@ static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount,
             outgoingCursor = 0;
         /* from vertex id */
         tmpEdge->from_vertex_id = atoll(PQgetvalue(res, i, 0));
-        /* to vertex id*/
+        /* to vertex id */
         tmpEdge->to_vertex_id = atoll(PQgetvalue(res, i, 1));
         /* edge length */
         tmpEdge->length = atof(PQgetvalue(res, i, 2));
@@ -124,7 +244,14 @@ static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount,
             outgoingEdge->adjNext = tmpEdge;
         }
         tmpEdge->adjNext = NULL;
+#ifdef DEBUG
+        /*printf("[DEBUG] ::readGraph, processed %d record, vertex id: %lld\n", */
+                /*i+1, tmpVertex->id);*/
+#endif
     }
+#ifdef DEBUG
+    printf("[DEBUG] End of ::readGraph\n");
+#endif
 }
 
 static void readSwitchPoints(PGresult *res, SwitchPoint ***switchpointArrayAddr) {
@@ -224,24 +351,30 @@ Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high,
 }
 
 // Check if the constructed graph has dirty data
-static int validateGraph(ModeGraph* g) {
+static int validateGraph(ModeGraph *g) {
+#ifdef DEBUG
+    printf("[DEBUG] Start validating graph g with mode_id %d\n", g->id);
+#endif
     for (int i = 0; i < g->vertex_count; i++) {
+#ifdef DEBUG
+        printf("[DEBUG] Checking vertex %d\n", i);
+#endif
         if (g->vertices[i] == NNULL) {
             // found a NULL vertex
             printf("FATAL: NULL vertex found in graph, seq number is %d, \
                     previous vertex id is %lld\n", i, g->vertices[i-1]->id);
             return EXIT_FAILURE;
         }
-        int claimed_outdegree = g->vertices[i]->outdegree;
-        int real_outdegree = 0;
-        if ((claimed_outdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
+        int claimedOutdegree = g->vertices[i]->outdegree;
+        int realOutdegree = 0;
+        if ((claimedOutdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
             // outgoing edges are not NULL while outdegree is 0
             printf("FATAL: bad vertex structure found! \
                     Outdegree is 0 while outgoing is not NULL. \
                     Problematic vertex id is %lld\n", g->vertices[i]->id);
             return EXIT_FAILURE;
         }
-        if (claimed_outdegree >= 1) {
+        if (claimedOutdegree >= 1) {
             if (g->vertices[i]->outgoing == NULL) {
                 // outgoing edge is NULL while outdegree is larger than 0
                 printf("FATAL: bad vertex structure found! \
@@ -249,7 +382,7 @@ static int validateGraph(ModeGraph* g) {
                         Problematic vertex id is %lld\n", g->vertices[i]->id);
                 return EXIT_FAILURE;
             }
-            Edge* pEdge = g->vertices[i]->outgoing;
+            Edge *pEdge = g->vertices[i]->outgoing;
             while (pEdge != NULL) {
                 if (pEdge->from_vertex_id != g->vertices[i]->id) {
                     // found foreign edges not emitted from the current vertex
@@ -259,10 +392,10 @@ static int validateGraph(ModeGraph* g) {
                             is %lld\n", g->vertices[i]->id, pEdge->from_vertex_id);
                     return EXIT_FAILURE;
                 }
-                real_outdegree++;
+                realOutdegree++;
                 pEdge = pEdge->adjNext;
             }
-            if (real_outdegree != claimed_outdegree) {
+            if (realOutdegree != claimedOutdegree) {
                 // real outdegree calculated by counting the outgoing edges is 
                 // not equal to the recorded outdegree
                 printf("FATAL: bad vertex structure found! \
@@ -288,14 +421,15 @@ static int getVertexCount(const char *vertexFilterCond) {
     }
     int vc = atoi(PQgetvalue(vertexResults, 0, 0));
 #ifdef DEBUG
-    printf("[DEBUG] found vertex %d\n", vc);
+    printf("[DEBUG] SQL of query vertices: %s\n", vertexFilterCond);
+    printf("[DEBUG] %d vertices are found \n", vc);
 #endif
     PQclear(vertexResults);
     return vc;
 }
 
 // Retrieve and read graph
-static void retrieveGraphData(const char *graphFilterCond, Vertex **vertices, 
+static void retrieveGraphData(const char *graphFilterCond, Vertex ***vertices, 
         int vertexCount, RoutingPlan *p) {
     PGresult *graphResults;
     graphResults = PQexec(conn, graphFilterCond);
@@ -306,11 +440,12 @@ static void retrieveGraphData(const char *graphFilterCond, Vertex **vertices,
         exitPostgreNicely(conn);
     }
 #ifdef DEBUG
+    printf("[DEBUG] SQL of query graphs: %s\n", graphFilterCond);
     printf("[DEBUG] Reading graphs... ");
 #endif
-    readGraph(graphResults, &vertices, vertexCount, p->cost_factor);
+    readGraph(graphResults, vertices, vertexCount, p->cost_factor);
 #ifdef DEBUG
-    printf(" done.\n");
+    printf("[DEBUG] done.\n");
 #endif
     PQclear(graphResults);
 }
@@ -485,79 +620,6 @@ static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCon
                 p->mode_id_list[i-1], toModeClause, 
                 p->switch_condition_list[i-1]);
     }
-}
-
-int LoadGraphFromDb(const char *pgConnStr) {
-    /* Step 1: connect to database 
-     * Step 2: read the series of graph data via SQL 
-     * Step 3: read the switch points via SQL ?? */
-    /* return 0 if everything succeeds, otherwise an error code */
-    assert(connectPostgre(pgConnStr));
-    loadAllGraphs();
-    disconnectPostgre();
-    return 0;
-}
-
-int ConnectDB(const char *pgConnStr) {
-    return connectPostgre(pgConnStr);
-}
-
-void DisconnectDB() {
-    disconnectPostgre();
-}
-
-int Parse() {
-    return AssembleGraphs();
-}
-
-int AssembleGraphs() {
-    extern RoutingPlan *plan;	
-#ifdef DEBUG
-    printf("[DEBUG] init multimodal graphs\n");
-#endif
-    if (initGraphs(plan->mode_count) == EXIT_FAILURE) {
-        printf("initialization of graphs failed\n");
-        return EXIT_FAILURE;
-    }
-    int i = 0;
-    graphCount = plan->mode_count;
-    for (i = 0; i < plan->mode_count; i++) {
-        int modeId = plan->mode_id_list[i];
-        int vertexCount = 0;
-        char switchFilterCondition[1024];
-        char vertexFilterCondition[512];
-        char graphFilterCondition[1024];
-        Vertex **vertices = NULL;
-        ModeGraph *tmpGraph = (ModeGraph*) malloc(sizeof(ModeGraph));
-        tmpGraph->id = modeId;
-        constructFilterConditions(plan, modeId, vertexFilterCondition, 
-                graphFilterCondition);
-        vertexCount = getVertexCount(vertexFilterCondition);
-        retrieveGraphData(graphFilterCondition, vertices, vertexCount, plan);
-        if (modeId == PUBLIC_TRANSPORTATION) 
-            constructPublicModeGraph(plan, switchFilterCondition, vertices, 
-                    vertexCount);
-        tmpGraph->vertices = vertices;
-        tmpGraph->vertex_count = vertexCount;
-        if (validateGraph(tmpGraph) == EXIT_FAILURE)
-            return EXIT_FAILURE;
-        activeGraphs[i] = tmpGraph;
-        if (i > 0) {
-            constructSwitchFilterCondition(plan, switchFilterCondition, i);
-            retrieveSwitchPointsFromDb(switchFilterCondition, 
-                    &switchpointCounts[i-1], switchpointsArr[i-1]);
-        }
-    }
-
-    return EXIT_SUCCESS;
-}
-
-void Dispose() {
-	disposeGraphs();
-	disposeSwitchPoints();
-	// FIXME: wierd... why not disposing result path table in DisposePaths()?
-	DisposeResultPathTable();
-	DisposeRoutingPlan();
 }
 
 static void disposeGraphs() {
