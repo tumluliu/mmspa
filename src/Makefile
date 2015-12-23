@@ -259,17 +259,17 @@ OTOOL64 = :
 PACKAGE = mmspa4pg
 PACKAGE_BUGREPORT = nudtlliu@gmail.com
 PACKAGE_NAME = mmspa4pg
-PACKAGE_STRING = mmspa4pg 2.0
+PACKAGE_STRING = mmspa4pg 1.1
 PACKAGE_TARNAME = mmspa4pg
 PACKAGE_URL = 
-PACKAGE_VERSION = 2.0
+PACKAGE_VERSION = 1.1
 PATH_SEPARATOR = :
 RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = strip
-VERSION = 2.0
+VERSION = 1.1
 abs_builddir = /Users/user/Projects/mmspa/src
 abs_srcdir = /Users/user/Projects/mmspa/src
 abs_top_builddir = /Users/user/Projects/mmspa
@@ -329,7 +329,7 @@ libmmspa4pg_la_SOURCES = mmspa4pg.c \
 						 mmtwoq.c \
 						 graphassembler.c
 
-libmmspa4pg_la_LDFLAGS = -version-info 2:0:0
+libmmspa4pg_la_LDFLAGS = -version-info 1:1:0
 libmmspa4pg_la_LIBADD = -lpq
 pkginclude_HEADERS = $(top_srcdir)/include/mmspa4pg.h \
 					 $(top_srcdir)/include/graphassembler.h \
