@@ -290,4 +290,3 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
     printf("[DEBUG] twoQSearch finished. \n");
 #endif
 }
-
