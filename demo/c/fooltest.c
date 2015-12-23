@@ -16,22 +16,25 @@ Description : Fool test for multimodal shortest path algorithms in C, Ansi-style
 int main(void) {
     /* 50 sources selected from the underground network randomly by another program for test */
     const char *testSources[] = {
-        "100201006346", "100201006351", "100201006352", "100201006356",
-        "100201006360", "100201006361", "100201006364", "100201006367",
-        "100201006369", "100201006374", "100201006381", "100201006383",
-        "100201006386", "100201006388", "100201006389", "100201006390",
-        "100201006391", "100201006393", "100201006395", "100201006399",
-        "100201006401", "100201006402", "100201006404", "100201006405",
-        "100201006407", "100201006411", "100201006412", "100201006413",
-        "100201006414", "100201006415", "100201006418", "100201006419",
-        "100201006422", "100201006425", "100201006426", "100201006427",
-        "100201006428", "100201006430", "100201006431", "100201006432",
-        "100201006434", "100201006435", "100201006436", "100201006437",
-        "100201006438", "100201006439", "100201006440", "100201006444",
-        "100201006445", "100201006446"
+        "122786152450", "122786152495", "122786152501", "121533104185",
+        "122786152522", "122786152527", "122786152534", "121742819427",
+        "121742819429", "121742819430", "121742819431", "121742819432",
+        "121742819433", "121742819436", "121333874798", "121333874800",
+        "121333874801", "121399935113", "121399935115", "121399935116",
+        "121399935124", "12449218585", "122598107848", "12193890484",
+        "123148959929", "122425442536", "12357468416", "12357468420",
+        "121195462952", "121195462954", "12160336172", "12160336180",
+        "12160336185", "121195462972", "12296651086", "12296651087",
+        "12296651088", "12366905739", "121837958246", "122935928433",
+        "122041663925", "12654215609", "12654215611", "12654215613",
+        "12654215615", "12654215618", "12654215623", "12654215625",
+        "12654215638", "12366905819"
     };
+
+    const int64_t testSource = 122786152450; 
+    const int64_t testTarget = 12654215611;
     /* change the PostgreSQL connection string according to your own config */
-    const char* conninfo = "dbname = 'testdb' user = 'liulu' password = 'workhard'";
+    const char *conninfo = "dbname = 'testdb' user = 'liulu' password = 'workhard'";
     if (ConnectDB(conninfo) != EXIT_SUCCESS) {
         printf("Connection to database failed.\n");
         return EXIT_FAILURE;
@@ -40,7 +43,7 @@ int main(void) {
     printf("Creating multimodal routing plans... ");
     //CreateRoutingPlan(1, 1);
     CreateRoutingPlan(1, 0);
-    SetModeListItem(0, 1002);
+    SetModeListItem(0, FOOT);
     //SetPublicTransitModeSetItem(0, 1003);
     SetCostFactor("speed");
     SetTargetConstraint(NULL);
@@ -63,9 +66,9 @@ int main(void) {
     printf("Calculating multimodal routes...\n");
     printf("Test times: 50\n");
     gettimeofday(&start_time, NULL);
-    MultimodalTwoQ(100201026122);
+    MultimodalTwoQ(testSource);
     double final_cost = 0.0;
-    final_cost = GetFinalCost(100201014862, "distance");
+    final_cost = GetFinalCost(testTarget, "distance");
     printf("Final cost is: %f\n", final_cost);
     //	for (int i = 0; i < 50; i++)
     //		MultimodalTwoQ(atoll(testSources[i]));
