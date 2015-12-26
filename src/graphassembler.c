@@ -49,7 +49,7 @@ static void constructFilterConditions(RoutingPlan *p, int modeId,
         char *vertexFilterCond, char *graphFilterCond);
 static void addPublicSwitchClauseToFilter(RoutingPlan *p, char *switchFilterCond);
 static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCount, 
-        SwitchPoint **publicSPs);
+        SwitchPoint ***publicSPs);
 static void constructPublicModeGraph(RoutingPlan *p, char *switchFilterCond, 
         Vertex **vertices, int vertexCount);
 static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCond, 
@@ -87,7 +87,7 @@ int Parse() {
 int AssembleGraphs() {
     extern RoutingPlan *plan;	
 #ifdef DEBUG
-    printf("[DEBUG] init multimodal graphs\n");
+    printf("[DEBUG][graphassembler.c::AssembleGraphs] init multimodal graphs\n");
 #endif
     if (initGraphs(plan->mode_count) == EXIT_FAILURE) {
         printf("initialization of graphs failed\n");
@@ -98,9 +98,9 @@ int AssembleGraphs() {
     for (i = 0; i < plan->mode_count; i++) {
         int modeId = plan->mode_id_list[i];
         int vertexCount = 0;
-        char switchFilterCondition[1024];
-        char vertexFilterCondition[512];
-        char graphFilterCondition[1024];
+        char switchFilterCondition[1024] = "";
+        char vertexFilterCondition[512] = "";
+        char graphFilterCondition[1024] = "";
         Vertex **vertices = NULL;
         ModeGraph *tmpGraph = (ModeGraph*) malloc(sizeof(ModeGraph));
         tmpGraph->id = modeId;
@@ -108,23 +108,23 @@ int AssembleGraphs() {
                 graphFilterCondition);
         vertexCount = getVertexCount(vertexFilterCondition);
 #ifdef DEBUG
-        printf("[DEBUG] ::AssembleGraphs retrieve mode graph from database \n");
+        printf("[DEBUG][graphassembler.c::AssembleGraphs] retrieve mode graph from database \n");
 #endif
         retrieveGraphData(graphFilterCondition, &vertices, vertexCount, plan);
 #ifdef DEBUG
-        printf("[DEBUG] ::AssembleGraphs construct mode graph for public transit \n");
+        printf("[DEBUG][graphassembler.c::AssembleGraphs] construct mode graph for public transit \n");
 #endif
         if (modeId == PUBLIC_TRANSPORTATION) 
             constructPublicModeGraph(plan, switchFilterCondition, vertices, 
                     vertexCount);
         tmpGraph->vertices = vertices;
 #ifdef DEBUG
-        printf("[DEBUG] ::AssembleGraphs assign vertices to tmpGraph \n");
+        printf("[DEBUG][graphassembler.c::AssembleGraphs] assign vertices to tmpGraph \n");
         printf("[DEBUG] First vertex in tmpGraph: %lld\n", tmpGraph->vertices[0]->id);
 #endif
         tmpGraph->vertex_count = vertexCount;
 #ifdef DEBUG
-        printf("[DEBUG] Validate the constructed graph...\n");
+        printf("[DEBUG][graphassembler.c::AssembleGraphs] Validate the constructed graph...\n");
 #endif
         if (validateGraph(tmpGraph) == EXIT_FAILURE)
             return EXIT_FAILURE;
@@ -132,7 +132,7 @@ int AssembleGraphs() {
         if (i > 0) {
             constructSwitchFilterCondition(plan, switchFilterCondition, i);
             retrieveSwitchPointsFromDb(switchFilterCondition, 
-                    &switchpointCounts[i-1], switchpointsArr[i-1]);
+                    &switchpointCounts[i-1], &switchpointsArr[i-1]);
         }
     }
 
@@ -192,7 +192,7 @@ static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount,
     int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
     recordCount = PQntuples(res);	
 #ifdef DEBUG
-    printf("[DEBUG] ::readGraph, record count is %d\n", recordCount);
+    printf("[DEBUG][graphassembler.c::readGraph] record count is %d\n", recordCount);
 #endif
     *vertexArrayAddr = (Vertex**) calloc(vertexCount, sizeof(Vertex*));
     Vertex *tmpVertex = NULL;
@@ -250,7 +250,7 @@ static void readGraph(PGresult *res, Vertex ***vertexArrayAddr, int vertexCount,
 #endif
     }
 #ifdef DEBUG
-    printf("[DEBUG] End of ::readGraph\n");
+    printf("[DEBUG][graphassembler.c::readGraph] End of ::readGraph\n");
 #endif
 }
 
@@ -284,14 +284,14 @@ static void combineGraphs(Vertex **vertexArray, int vertexCount,
         SwitchPoint **switchpointArray, int switchpointCount) {
     // Treat all the switch point pairs as new edges and add them into the graph
 #ifdef DEBUG
-    printf("[DEBUG] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
+    printf("[DEBUG][graphassembler.c::combineGraphs] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
 #endif
     int i = 0;
     for (i = 0; i < switchpointCount; i++) {
 #ifdef DEBUG
-        printf("[DEBUG] Processing switch point %d\n", i + 1);
-        printf("[DEBUG] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
-        printf("[DEBUG] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
+        printf("[DEBUG][graphassembler.c::combineGraphs] Processing switch point %d\n", i + 1);
+        printf("[DEBUG][graphassembler.c::combineGraphs] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
+        printf("[DEBUG][graphassembler.c::combineGraphs] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
 #endif
         Edge* tmpEdge;
         tmpEdge = (Edge*) malloc(sizeof(Edge));
@@ -322,7 +322,7 @@ static void combineGraphs(Vertex **vertexArray, int vertexCount,
         tmpEdge->length_factor = 1.0;
     }
 #ifdef DEBUG
-    printf("[DEBUG] Finish combining.\n");
+    printf("[DEBUG][graphassembler.c::combineGraphs] Finish combining.\n");
 #endif
 }
 
@@ -353,11 +353,11 @@ Vertex* BinarySearchVertexById(Vertex** vertexArray, int low, int high,
 // Check if the constructed graph has dirty data
 static int validateGraph(ModeGraph *g) {
 #ifdef DEBUG
-    printf("[DEBUG] Start validating graph g with mode_id %d\n", g->id);
+    printf("[DEBUG][graphassembler.c::validateGraph] Start validating graph g with mode_id %d\n", g->id);
 #endif
     for (int i = 0; i < g->vertex_count; i++) {
 #ifdef DEBUG
-        printf("[DEBUG] Checking vertex %d\n", i);
+        /*printf("[DEBUG][graphassembler.c::validateGraph] Checking vertex %d\n", i);*/
 #endif
         if (g->vertices[i] == NNULL) {
             // found a NULL vertex
@@ -421,8 +421,8 @@ static int getVertexCount(const char *vertexFilterCond) {
     }
     int vc = atoi(PQgetvalue(vertexResults, 0, 0));
 #ifdef DEBUG
-    printf("[DEBUG] SQL of query vertices: %s\n", vertexFilterCond);
-    printf("[DEBUG] %d vertices are found \n", vc);
+    printf("[DEBUG][graphassembler.c::getVertexCount] SQL of query vertices: %s\n", vertexFilterCond);
+    printf("[DEBUG][graphassembler.c::getVertexCount] %d vertices are found \n", vc);
 #endif
     PQclear(vertexResults);
     return vc;
@@ -440,12 +440,12 @@ static void retrieveGraphData(const char *graphFilterCond, Vertex ***vertices,
         exitPostgreNicely(conn);
     }
 #ifdef DEBUG
-    printf("[DEBUG] SQL of query graphs: %s\n", graphFilterCond);
-    printf("[DEBUG] Reading graphs... ");
+    printf("[DEBUG][graphassembler.c::retrieveGraphData] SQL of query graphs: %s\n", graphFilterCond);
+    printf("[DEBUG][graphassembler.c::retrieveGraphData] Reading graphs... ");
 #endif
     readGraph(graphResults, vertices, vertexCount, p->cost_factor);
 #ifdef DEBUG
-    printf("[DEBUG] done.\n");
+    printf("[DEBUG][graphassembler.c::retrieveGraphData] done.\n");
 #endif
     PQclear(graphResults);
 }
@@ -528,14 +528,17 @@ static void addPublicSwitchClauseToFilter(RoutingPlan *p, char *switchFilterCond
     sprintf(switchFilterCond, "SELECT from_vertex_id, to_vertex_id, cost FROM \
             switch_points WHERE %s", psClause);
 #ifdef DEBUG
-    printf("[DEBUG] SQL statement for filtering switch points: \n");
+    printf("[DEBUG][graphassembler.c::addPublicSwitchClauseToFilter] SQL statement for filtering switch points: \n");
     printf("%s\n", switchFilterCond);
 #endif
 }
 
 static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCount, 
-        SwitchPoint **publicSPs) {
+        SwitchPoint ***publicSPs) {
     PGresult *switchpointResults;
+#ifdef DEBUG
+    printf("[DEBUG][graphassembler.c::retrieveSwitchPointsFromDb] SQL for fetching switch points: %s\n", switchFilterCond);
+#endif
     switchpointResults = PQexec(conn, switchFilterCond);
     if (PQresultStatus(switchpointResults) != PGRES_TUPLES_OK) {
         fprintf(stderr, "query in switch_points table failed: %s", 
@@ -545,12 +548,12 @@ static void retrieveSwitchPointsFromDb(const char *switchFilterCond, int *spCoun
     }
     *spCount = PQntuples(switchpointResults);
 #ifdef DEBUG
-    printf("[DEBUG] Found switch points: %d\n", *spCount);
-    printf("[DEBUG] Reading and parsing switch points...");
+    printf("[DEBUG][graphassembler.c::retrieveSwitchPointsFromDb] Found switch points: %d\n", *spCount);
+    printf("[DEBUG][graphassembler.c::retrieveSwitchPointsFromDb] Reading and parsing switch points...");
 #endif
-    readSwitchPoints(switchpointResults, &publicSPs);
+    readSwitchPoints(switchpointResults, publicSPs);
 #ifdef DEBUG
-    printf(" done.\n");
+    printf("[graphassembler.c::retrieveSwitchPointsFromDb] done.\n");
 #endif
     PQclear(switchpointResults);
 }
@@ -564,22 +567,25 @@ static void constructPublicModeGraph(RoutingPlan *p, char *switchFilterCond,
     int publicSwitchPointCount = 0;
     addPublicSwitchClauseToFilter(p, switchFilterCond);
     retrieveSwitchPointsFromDb(switchFilterCond, &publicSwitchPointCount, 
-            publicSwitchPoints);
+            &publicSwitchPoints);
     // combine the graphs by adding switch lines in the 
     // (vertices, edges) set and get the mode 
     // PUBLIC_TRANSPORTATION graph
 #ifdef DEBUG
-    printf("[DEBUG] Combining multimodal graphs for public transit...\n");
+    printf("[DEBUG][graphassembler.c::constructPublicModeGraph] Combining multimodal graphs for public transit...\n");
 #endif
     combineGraphs(vertices, vertexCount, publicSwitchPoints, 
             publicSwitchPointCount);
 #ifdef DEBUG
-    printf(" done.\n");
+    printf("[DEBUG][graphassembler.c::constructPublicModeGraph] done.\n");
 #endif
 }
 
 static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCond, 
         int i) {
+#ifdef DEBUG
+    printf("[DEBUG][graphassembler.c::constructSwitchFilterCondition] parameter switchFilter Cond passed in: %s\n", switchFilterCond);
+#endif
     int j = 0;
     if ((p->mode_id_list[i-1] != PUBLIC_TRANSPORTATION) && 
             (p->mode_id_list[i] != PUBLIC_TRANSPORTATION))
@@ -620,6 +626,9 @@ static void constructSwitchFilterCondition(RoutingPlan *p, char *switchFilterCon
                 p->mode_id_list[i-1], toModeClause, 
                 p->switch_condition_list[i-1]);
     }
+#ifdef DEBUG
+    printf("[DEBUG][graphassembler.c::constructSwitchFilterCondition] parameter switchFilter Cond after constructing: %s\n", switchFilterCond);
+#endif
 }
 
 static void disposeGraphs() {
