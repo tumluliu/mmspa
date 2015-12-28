@@ -31,8 +31,9 @@ int main(void) {
         "12654215638", "12366905819"
     };
 
-    const int64_t testSource = 122786152450; 
-    const int64_t testTarget = 12654215611;
+    const int64_t testDrivingSource = 11618163561; 
+    const int64_t testWalkingSource = 12618163561; 
+    const int64_t testTarget = 12672741190;
     /* change the PostgreSQL connection string according to your own config */
     const char *conninfo = "dbname = 'testdb' user = 'liulu' password = 'workhard'";
     if (ConnectDB(conninfo) != EXIT_SUCCESS) {
@@ -41,10 +42,11 @@ int main(void) {
     }
     printf("Connected to database. \n");
     printf("Creating multimodal routing plans... ");
-    //CreateRoutingPlan(1, 1);
-    CreateRoutingPlan(1, 0);
-    SetModeListItem(0, FOOT);
-    //SetPublicTransitModeSetItem(0, 1003);
+    CreateRoutingPlan(2, 0);
+    SetModeListItem(0, PRIVATE_CAR);
+    SetModeListItem(1, FOOT);
+    /* type_id=91 means to use car parking as switch points */
+    SetSwitchConditionListItem(0, "type_id=91 AND is_available=true");
     SetCostFactor("speed");
     SetTargetConstraint(NULL);
     printf("done! \n");
@@ -58,26 +60,23 @@ int main(void) {
         return EXIT_FAILURE;
     }
     gettimeofday(&finish_time, NULL);
-    duration = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000000;
+    duration = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - 
+            (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000000;
     printf("done! \n");
     printf(
             "Multimodal graph construction:   %8.4f   seconds\n",
             duration);
     printf("Calculating multimodal routes...\n");
-    printf("Test times: 50\n");
     gettimeofday(&start_time, NULL);
-    MultimodalTwoQ(testSource);
+    MultimodalTwoQ(testDrivingSource);
     double final_cost = 0.0;
     final_cost = GetFinalCost(testTarget, "distance");
     printf("Final cost is: %f\n", final_cost);
-    //	for (int i = 0; i < 50; i++)
-    //		MultimodalTwoQ(atoll(testSources[i]));
     gettimeofday(&finish_time, NULL);
-    averageTime = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000 / 50;
-    printf(
-            "Calculation finished, average time consumed by MultimodalTwoQ:   %10.2f   milliseconds\n",
-            averageTime);
-
+    averageTime = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - 
+            (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000 / 50;
+    printf("Calculation finished, average time consumed by MultimodalTwoQ:   \
+            %10.2f   milliseconds\n", averageTime);
     Dispose();
     DisconnectDB();
     return EXIT_SUCCESS;

@@ -4,7 +4,7 @@ libmmspa4pg_la_SOURCES = mmspa4pg.c \
 						 routingresult.c \
 						 mmtwoq.c \
 						 graphassembler.c
-libmmspa4pg_la_LDFLAGS = -version-info 2:0:0
+libmmspa4pg_la_LDFLAGS = -version-info 1:1:0
 libmmspa4pg_la_LIBADD = -lpq
 pkgincludedir = $(includedir)/mmspa4pg
 pkginclude_HEADERS = $(top_srcdir)/include/mmspa4pg.h \

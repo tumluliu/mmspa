@@ -43,8 +43,8 @@ void MultimodalTwoQ(int64_t source) {
     extern RoutingPlan *plan;
     int i = 0;
 #ifdef DEBUG
-    printf("[DEBUG] start MultimodalTwoQ in libmmspa4pg. \n");
-    printf("[DEBUG] preparing result path data structures. \n");
+    printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start MultimodalTwoQ in libmmspa4pg. \n");
+    printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] preparing result path data structures. \n");
 #endif
     Vertex *begin = NNULL, *end = NNULL, *entry = NNULL;
     if (pathRecordTable != NULL)
@@ -58,7 +58,7 @@ void MultimodalTwoQ(int64_t source) {
         PathRecorder **pathRecordArray = (PathRecorder**) calloc(
                 pathRecordCountArray[i], sizeof(PathRecorder*));
 #ifdef DEBUG
-        printf("[DEBUG] start doing multimodalTwoQInit... \n");
+        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start doing multimodalTwoQInit... \n");
 #endif
         if (i == 0)
             multimodalTwoQInit(activeGraphs[i], NULL, NULL, 0, NULL, source, &begin, 
@@ -69,8 +69,8 @@ void MultimodalTwoQ(int64_t source) {
                     plan->switch_constraint_list[i-1], source, &begin, &end, &entry, 
                     &pathRecordArray, plan->cost_factor);
 #ifdef DEBUG
-        printf("[DEBUG] done! \n");
-        printf("[DEBUG] start doing twoQSearch... \n");
+        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] done! \n");
+        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start doing twoQSearch... \n");
 #endif
         twoQSearch(activeGraphs[i], &begin, &end, &entry, &pathRecordArray, 
                 plan->cost_factor, plan->target_constraint);
@@ -87,13 +87,13 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
     Vertex *src;
 
 #ifdef DEBUG
-    printf("[DEBUG] multimodalTwoQInit started. \n");
-    printf("[DEBUG] traversely init vertices... \n");
-    printf("[DEBUG] number of vertices: %d \n", v_number);
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] multimodalTwoQInit started. \n");
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] traversely init vertices... \n");
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] number of vertices: %d \n", v_number);
 #endif
     for (i = 0; i < v_number; i++) {
 #ifdef DEBUG
-        printf("[DEBUG] init vertex: %lld, %d/%d\n", g->vertices[i]->id, i, v_number);
+        /*printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] init vertex: %lld, %d/%d\n", g->vertices[i]->id, i, v_number);*/
 #endif
         g->vertices[i]->temp_cost = VERY_FAR;
         g->vertices[i]->distance = VERY_FAR;
@@ -109,14 +109,14 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
         (*prev)[i] = tmpRecorder;
     }
 #ifdef DEBUG
-    printf("[DEBUG] done.\n");
-    printf("[DEBUG] start processing switch point list...\n");
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] done.\n");
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] start processing switch point list...\n");
 #endif
     (*entry) = NNULL;
     if (spList == NULL) {
 #ifdef DEBUG
-        printf("[DEBUG] no switch points input.\n");
-        printf("[DEBUG] init source vertex\n");
+        printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] no switch points input.\n");
+        printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] init source vertex\n");
 #endif
         src = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, source);
         src->temp_cost = 0;
@@ -129,12 +129,12 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
         src->next = NNULL;
         src->status = IN_QUEUE;
 #ifdef DEBUG
-        printf("[DEBUG] done.\n");
+        printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] done.\n");
 #endif
     } else {
         /* relax every switch point pairs (i.e. switch edges) */
 #ifdef DEBUG
-        printf("[DEBUG] number of switch points: %d.\n", spListLength);
+        printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] number of switch points: %d.\n", spListLength);
 #endif
         (*begin) = (*end) = NNULL;
         double costNew;
@@ -184,11 +184,11 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
             }
         }
 #ifdef DEBUG
-        printf("[DEBUG] done!\n");
+        printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] done!\n");
 #endif
     }
 #ifdef DEBUG
-    printf("[DEBUG] multimodalTwoQInit finished. \n");
+    printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] multimodalTwoQInit finished. \n");
 #endif
 }
 
@@ -200,7 +200,7 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
     Edge *edge_ij;
     int edgeCount = 0, i = 0, vertexCount = 0;
 #ifdef DEBUG
-    printf("[DEBUG] twoQSearch started. \n");
+    printf("[DEBUG][mmtwoq.c::twoQSearch] twoQSearch started. \n");
 #endif
     while ((*begin) != NNULL) {
         // EXTRACT_FIRST(vertexFrom)
@@ -287,6 +287,6 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
             (*prev)[i]->parent_vertex_id = g->vertices[i]->parent->id;
     }
 #ifdef DEBUG
-    printf("[DEBUG] twoQSearch finished. \n");
+    printf("[DEBUG][mmtwoq.c::twoQSearch] twoQSearch finished. \n");
 #endif
 }
