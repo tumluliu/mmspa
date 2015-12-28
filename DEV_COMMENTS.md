@@ -8,10 +8,23 @@ source will become configurable in the future.
 
 ### Public functions 
 
-The functions visible to all across the library as well as the library client.
+#### Internal public functions
+
+The functions are visible to all across the library, but invisible to external
+clients.
 
 ```C
 void DoSomething();
+```
+
+#### External public functions
+
+The functions are visible to all across the library as well as the external
+clients. In other words, they are the APIs. Here I use the MSP instead of MMSPA for 
+abbrevating Multimodal Shortest Paths because it is more concise.
+
+```C
+void MSPdoSomething();
 ```
 
 ### Constants
