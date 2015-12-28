@@ -20,8 +20,36 @@
 #include "routingplan.h"
 #include "routingresult.h"
 
+/*
+ * v2.x API
+ */
+
 /* Function of initializing the library, preparing and caching mode graph data */
-int Init(const char *pgConnStr);
+int MSPinit(const char *pgConnStr);
+/* Functions of creating multimodal routing plan */
+void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
+void MSPsetMode(int index, int modeId);
+void MSPsetPublicTransit(int index, int modeId);
+void MSPsetSwitchCondition(int index, const char *spCondition);
+void MSPsetSwitchingConstraint(int index, VertexValidationChecker callback);
+void MSPsetTargetConstraint(VertexValidationChecker callback);
+void MSPsetCostFactor(const char *costFactor);
+/* Function of assembling multimodal graph set for each routing plan */
+int MSPassembleGraphs();
+/* Functions of finding multimodal shortest paths */
+Path **MSPfindPath(int64_t source, int64_t target);
+void MSPtwoq(int64_t source);
+/* Functions of fetching and releasing the path planning results */
+Path **MSPgetFinalPath(int64_t source, int64_t target);
+double MSPgetFinalCost(int64_t target, const char *costField);
+void MSPclearPaths(Path **paths);
+/* Function of disposing the library memory */
+void MSPfinalize();
+
+/*
+ * v1.x API
+ */
+
 /* Functions of creating multimodal routing plan */
 void CreateRoutingPlan(int modeCount, int publicModeCount);
 void SetModeListItem(int index, int modeId);
@@ -30,16 +58,10 @@ void SetSwitchConditionListItem(int index, const char *spCondition);
 void SetSwitchingConstraint(int index, VertexValidationChecker callback);
 void SetTargetConstraint(VertexValidationChecker callback);
 void SetCostFactor(const char *costFactor);
-/* Functions of preparing the multimodal graphs for a concrete routing plan */
-int AssembleGraphs();
-/* FIXME: Just for compatability. This function is identical to AssembleGraphs */
 int Parse(); 
-/* FIXME: Just for compatability. These two database connecting/disconnecting
- * functions should be invisible to clients. */
 int ConnectDB(const char *pgConnStr);
 void DisconnectDB();
 /* Functions of multimodal shortest path algorithms */
-Path **FindMultimodalPath(int64_t source, int64_t target);
 void MultimodalTwoQ(int64_t source);
 /* Functions of fetching and releasing the path planning results */
 Path **GetFinalPath(int64_t source, int64_t target);
