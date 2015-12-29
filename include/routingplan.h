@@ -38,12 +38,24 @@ struct RoutingPlan
 	const char              *cost_factor;
 };
 
+/* v2.x API */
+void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
+void MSPsetMode(int index, int modeId);
+void MSPsetPublicTransit(int index, int modeId);
+void MSPsetSwitchCondition(int index, const char *spCondition);
+void MSPsetSwitchingConstraint(int index, VertexValidationChecker callback);
+void MSPsetTargetConstraint(VertexValidationChecker callback);
+void MSPsetCostFactor(const char *costFactor);
+
+/* v1.x API */
 void CreateRoutingPlan(int modeCount, int publicModeCount);
 void SetModeListItem(int index, int modeId);
 void SetPublicTransitModeSetItem(int index, int modeId);
 void SetSwitchConditionListItem(int index, const char *spCondition);
 void SetSwitchingConstraint(int index, VertexValidationChecker callback);
 void SetTargetConstraint(VertexValidationChecker callback);
+void SetCostFactor(const char *costFactor);
+
 void DisposeRoutingPlan();
 
 #endif   /* ----- #ifndef ROUTINGPLAN_INC  ----- */
