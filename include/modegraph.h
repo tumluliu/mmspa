@@ -22,7 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NNULL (Vertex*)NULL
+#define VNULL (Vertex*)NULL
+#define ENULL (Edge*)NULL
+#define GNULL (ModeGraph*)NULL
 #define VERY_FAR 1073741823
 /* TOTAL_MODES is 7 instead of 9 because so far the TAXI mode is not considered, 
  * and the public transport is actually a abstract mode consisting of UNDERGROUND, 

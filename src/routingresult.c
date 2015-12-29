@@ -121,7 +121,7 @@ double GetFinalCost(int64_t target, const char *costField) {
 	Vertex *targetVertex = BinarySearchVertexById(
 	        activeGraphs[graphCount - 1]->vertices, 0, 
 	        activeGraphs[graphCount - 1]->vertex_count - 1, target);
-	if (targetVertex == NNULL)
+	if (targetVertex == VNULL)
 		return -1;
 	else {
 		if (strcmp(costField, "distance") == 0)

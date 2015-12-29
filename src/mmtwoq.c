@@ -46,7 +46,7 @@ void MultimodalTwoQ(int64_t source) {
     printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start MultimodalTwoQ in libmmspa4pg. \n");
     printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] preparing result path data structures. \n");
 #endif
-    Vertex *begin = NNULL, *end = NNULL, *entry = NNULL;
+    Vertex *begin = VNULL, *end = VNULL, *entry = VNULL;
     if (pathRecordTable != NULL)
         DisposeResultPathTable();
     pathRecordTable = (PathRecorder***) calloc(plan->mode_count,
@@ -100,9 +100,9 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
         g->vertices[i]->elapsed_time = VERY_FAR;
         g->vertices[i]->walking_distance = VERY_FAR;
         g->vertices[i]->walking_time = VERY_FAR;
-        g->vertices[i]->parent = NNULL;
+        g->vertices[i]->parent = VNULL;
         g->vertices[i]->status = UNREACHED;
-        g->vertices[i]->next = NNULL;
+        g->vertices[i]->next = VNULL;
         PathRecorder *tmpRecorder = (PathRecorder*) malloc(sizeof(PathRecorder));
         tmpRecorder->vertex_id = g->vertices[i]->id;
         tmpRecorder->parent_vertex_id = -1 * VERY_FAR;
@@ -112,7 +112,7 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
     printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] done.\n");
     printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] start processing switch point list...\n");
 #endif
-    (*entry) = NNULL;
+    (*entry) = VNULL;
     if (spList == NULL) {
 #ifdef DEBUG
         printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] no switch points input.\n");
@@ -126,7 +126,7 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
         src->walking_time = 0;
         src->parent = src;
         (*begin) = (*end) = src;
-        src->next = NNULL;
+        src->next = VNULL;
         src->status = IN_QUEUE;
 #ifdef DEBUG
         printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] done.\n");
@@ -136,14 +136,14 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
 #ifdef DEBUG
         printf("[DEBUG][mmtwoq.c::multimodalTwoQInit] number of switch points: %d.\n", spListLength);
 #endif
-        (*begin) = (*end) = NNULL;
+        (*begin) = (*end) = VNULL;
         double costNew;
         for (i = 0; i < spListLength; i++) {			
             Vertex* switchFrom = BinarySearchVertexById(last_g->vertices,
                     0, last_g->vertex_count - 1, spList[i]->from_vertex_id);
             Vertex* switchTo = BinarySearchVertexById(g->vertices,
                     0, g->vertex_count - 1, spList[i]->to_vertex_id);
-            if (switchFrom != NNULL && switchTo != NNULL) {
+            if (switchFrom != VNULL && switchTo != VNULL) {
                 if (checkConstraint != NULL) {
                     if (checkConstraint(switchFrom) != 0) {
                         continue;
@@ -172,12 +172,12 @@ static void multimodalTwoQInit(ModeGraph *g, ModeGraph *last_g, SwitchPoint **sp
                     /* enqueue switch points */
                     // INSERT_TO_BACK(switchTo)
                     if (switchTo->status != IN_QUEUE) {
-                        if ((*begin) == NNULL)
+                        if ((*begin) == VNULL)
                             *begin = switchTo;
                         else
                             (*end)->next = switchTo;
                         (*end) = switchTo;
-                        (*end)->next = NNULL;
+                        (*end)->next = VNULL;
                         switchTo->status = IN_QUEUE;
                     }
                 }
@@ -202,12 +202,12 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
 #ifdef DEBUG
     printf("[DEBUG][mmtwoq.c::twoQSearch] twoQSearch started. \n");
 #endif
-    while ((*begin) != NNULL) {
+    while ((*begin) != VNULL) {
         // EXTRACT_FIRST(vertexFrom)
         vertexFrom = *begin;
         vertexFrom->status = WAS_IN_QUEUE;
         if ((*begin) == (*entry))
-            *entry = NNULL;
+            *entry = VNULL;
         *begin = (*begin)->next;
         if (checkConstraint != NULL) {
             if (checkConstraint(vertexFrom) != 0) {
@@ -248,13 +248,13 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
                 if (!vertexTo->status == IN_QUEUE) {
                     if (vertexTo->status == WAS_IN_QUEUE) {
                         // INSERT_TO_ENTRY(vertexTo)
-                        if ((*entry) != NNULL) {
+                        if ((*entry) != VNULL) {
                             vertexTo->next = (*entry)->next;
                             (*entry)->next = vertexTo;
                             if ((*entry) == (*end))
                                 (*end) = vertexTo;
                         } else {
-                            if ((*begin) == NNULL)
+                            if ((*begin) == VNULL)
                                 (*end) = vertexTo;
                             vertexTo->next = (*begin);
                             (*begin) = vertexTo;
@@ -263,13 +263,13 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
                         (*entry) = vertexTo;
                     } else {
                         // INSERT_TO_BACK(vertexTo)
-                        if ((*begin) == NNULL)
+                        if ((*begin) == VNULL)
                             (*begin) = vertexTo;
                         else
                             (*end)->next = vertexTo;
 
                         (*end) = vertexTo;
-                        (*end)->next = NNULL;
+                        (*end)->next = VNULL;
                         vertexTo->status = IN_QUEUE;
                     }
                 }
@@ -281,7 +281,7 @@ static void twoQSearch(ModeGraph *g, Vertex **begin, Vertex **end, Vertex **entr
     vertexCount = g->vertex_count;
     for (i = 0; i < vertexCount; i++) {
         (*prev)[i]->vertex_id = g->vertices[i]->id;
-        if (g->vertices[i]->parent == NNULL)
+        if (g->vertices[i]->parent == VNULL)
             (*prev)[i]->parent_vertex_id = -1 * VERY_FAR;
         else
             (*prev)[i]->parent_vertex_id = g->vertices[i]->parent->id;
