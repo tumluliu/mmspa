@@ -20,7 +20,7 @@
 
 #include "modegraph.h"
 
-typedef struct PathRecorder PathRecorder;
+typedef struct PathRecorder *PathRecorder;
 typedef struct Path Path;
 
 struct PathRecorder {
