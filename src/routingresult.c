@@ -18,20 +18,20 @@
 
 #include "../include/routingresult.h"
 
-PathRecorder ***pathRecordTable = NULL;
+PathRecorder **pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;
 int inputModeCount = 0;
 
-static SwitchPoint *searchSwitchPointByToId(int64_t id, SwitchPoint** spList, 
+static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *spList, 
         int spListLength);
-static PathRecorder *searchRecordByVertexId(int64_t id, PathRecorder **recordList, 
+static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *recordList, 
         int recordListLength);
 
 Path **GetFinalPath(int64_t source, int64_t target) {
-	extern SwitchPoint ***switchpointsArr;
+	extern SwitchPoint **switchpointsArr;
 	extern int *switchpointCounts;
 	int i = 0, pathVertexCount = 1, j = 0;
-	PathRecorder *pr;
+	PathRecorder pr = NULL;
 	Path **paths = (Path **) calloc(inputModeCount, sizeof(Path*));
 	pr = searchRecordByVertexId(target, pathRecordTable[inputModeCount - 1],
 			pathRecordCountArray[inputModeCount - 1]);
@@ -62,7 +62,6 @@ Path **GetFinalPath(int64_t source, int64_t target) {
 				pathRecordCountArray[inputModeCount - 1]);
 	}
 	paths[inputModeCount - 1]->vertex_list[0] = pr->vertex_id;
-	
 	for (i = inputModeCount - 2; i >= 0; i--) {
 		pathVertexCount = 1;
 		int64_t switchFromId = searchSwitchPointByToId(pr->vertex_id, 
@@ -116,9 +115,9 @@ void DisposeResultPathTable() {
 }
 
 double GetFinalCost(int64_t target, const char *costField) {
-	extern ModeGraph **activeGraphs;
+	extern ModeGraph *activeGraphs;
 	extern int graphCount;
-	Vertex *targetVertex = BinarySearchVertexById(
+	Vertex targetVertex = BinarySearchVertexById(
 	        activeGraphs[graphCount - 1]->vertices, 0, 
 	        activeGraphs[graphCount - 1]->vertex_count - 1, target);
 	if (targetVertex == VNULL)
@@ -126,8 +125,8 @@ double GetFinalCost(int64_t target, const char *costField) {
 	else {
 		if (strcmp(costField, "distance") == 0)
 			return targetVertex->distance;
-		else if (strcmp(costField, "elapsed_time") == 0)
-			return targetVertex->elapsed_time;
+		else if (strcmp(costField, "duration") == 0)
+			return targetVertex->duration;
 		else if (strcmp(costField, "walking_distance") == 0)
 			return targetVertex->walking_distance;
 		else if (strcmp(costField, "walking_time") == 0)
@@ -137,7 +136,7 @@ double GetFinalCost(int64_t target, const char *costField) {
 	}
 }
 
-void DisposePaths(Path** paths) {
+void DisposePaths(Path **paths) {
 	int i = 0;
 	for (i = 0; i < inputModeCount; i++) {
 		free(paths[i]->vertex_list);
@@ -149,7 +148,7 @@ void DisposePaths(Path** paths) {
 	paths = NULL;
 }
 
-static PathRecorder *searchRecordByVertexId(int64_t id, PathRecorder **recordList, 
+static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *recordList, 
         int recordListLength) {
 	int i = 0;
 	for (i = 0; i < recordListLength; i++) {
@@ -159,7 +158,7 @@ static PathRecorder *searchRecordByVertexId(int64_t id, PathRecorder **recordLis
 	return NULL;
 }
 
-static SwitchPoint *searchSwitchPointByToId(int64_t id, SwitchPoint** spList, 
+static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *spList, 
         int spListLength) {
 	// FIXME: There will be a potential problem here: 
 	// how to deal with the m:1 relationship with in a switch point?

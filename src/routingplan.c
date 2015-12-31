@@ -53,7 +53,7 @@ void MSPsetSwitchCondition(int index, const char *spCondition) {
 	plan->switch_condition_list[index] = spCondition;
 }
 
-void MSPsetSwitchingConstraint(int index, VertexValidationChecker callback) {
+void MSPsetSwitchConstraint(int index, VertexValidationChecker callback) {
 	plan->switch_constraint_list[index] = callback;
 }
 
@@ -83,7 +83,7 @@ void SetSwitchConditionListItem(int index, const char *spCondition) {
 }
 
 void SetSwitchingConstraint(int index, VertexValidationChecker callback) {
-	MSPsetSwitchingConstraint(index, callback);
+	MSPsetSwitchConstraint(index, callback);
 }
 
 void SetTargetConstraint(VertexValidationChecker callback) {
