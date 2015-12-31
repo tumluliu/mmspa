@@ -24,7 +24,7 @@
 typedef struct RoutingPlan RoutingPlan;
 /* This is a callback function for checking the validity of a vertex should be 
  * defined by the client */
-typedef int (*VertexValidationChecker)(Vertex *vertexToCheck); 
+typedef int (*VertexValidationChecker)(Vertex vertexToCheck); 
 
 struct RoutingPlan
 {
@@ -43,7 +43,7 @@ void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
 void MSPsetMode(int index, int modeId);
 void MSPsetPublicTransit(int index, int modeId);
 void MSPsetSwitchCondition(int index, const char *spCondition);
-void MSPsetSwitchingConstraint(int index, VertexValidationChecker callback);
+void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
 void MSPsetTargetConstraint(VertexValidationChecker callback);
 void MSPsetCostFactor(const char *costFactor);
 
