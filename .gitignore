@@ -21,6 +21,7 @@ autom4te.cache/
 .ropeproject/
 
 fooltest
+fooltest-*
 config.cache
 config.h
 config.intl
