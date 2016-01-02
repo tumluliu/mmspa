@@ -38,15 +38,14 @@ static int initGraphs(int graphCount);
 static ModeGraph deepCopyModeGraphFromCache(int modeId);
 static ModeGraph shallowCopyModeGraphFromCache(int modeId);
 static ModeGraph cloneModeGraph(ModeGraph g);
-static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount, 
-        const char *costFactor);
+static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount);
 static void readSwitchPoints(PGresult *res, SwitchPoint **switchpointArrayAddr);
 static void embedSwitchPoints(Vertex *vertexArray, int vertexCount, 
         SwitchPoint *switchpointArray, int switchpointCount);
 static int validateGraph(ModeGraph g);
 static int getVertexCount(const char *vertexCountSQL);
 static void retrieveGraphData(const char *graphSQL, Vertex **vertices, 
-        int vertexCount, RoutingPlan *p);
+        int vertexCount);
 static char *constructPublicModeClause(RoutingPlan *p);
 static void constructGraphSQL(RoutingPlan *p, int modeId, char *vertexCountSQL, 
         char *graphSQL);
@@ -56,6 +55,7 @@ static void retrieveSwitchPoints(const char *switchSQL, int *spCount,
 static void constructPublicModeGraph(RoutingPlan *p, char *switchSQL, 
         Vertex *vertices, int vertexCount);
 static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p);
+static void disposePublicModeGraph();
 static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i);
 static void disposeActiveGraphs();
 static void disposeGraphBase();
@@ -70,7 +70,7 @@ int MSPinit(const char *pgConnStr) {
      * Step 2: read the series of graph data via SQL 
      * Step 3: read the switch points via SQL ?? */
     /* return 0 if everything succeeds, otherwise an error code */
-    assert(connectPostgre(pgConnStr));
+    assert(!connectPostgre(pgConnStr));
     loadAllGraphs();
     return 0;
 }
@@ -87,6 +87,9 @@ int MSPassembleGraphs() {
         int modeId = plan->mode_id_list[i];
         char switchpointSQL[1024] = "";
         ModeGraph g = GNULL;
+#ifdef DEBUG
+        printf("[DEBUG][graphassembler.c::MSPassembleGraphs]create active graphs from cache\n");
+#endif
         if (modeId != PUBLIC_TRANSPORTATION)
             g = shallowCopyModeGraphFromCache(modeId);
         else 
@@ -103,8 +106,13 @@ int MSPassembleGraphs() {
     return EXIT_SUCCESS;
 }
 
+void MSPclearActiveGraphs() {
+    disposePublicModeGraph();
+    disposeSwitchPoints();
+    DisposeResultPathTable();
+}
+
 void MSPfinalize() {
-    Dispose();
     disposeGraphBase();
 }
 
@@ -145,7 +153,7 @@ int Parse() {
 #ifdef DEBUG
         printf("[DEBUG][graphassembler.c::Parse] retrieve mode graph from database \n");
 #endif
-        retrieveGraphData(graphSQL, &vertices, vertexCount, plan);
+        retrieveGraphData(graphSQL, &vertices, vertexCount);
 #ifdef DEBUG
         printf("[DEBUG][graphassembler.c::Parse] construct mode graph for public transit \n");
 #endif
@@ -217,7 +225,7 @@ static void loadAllGraphs() {
         g->id = i;
         constructGraphSQL(NULL, i, vertexCountSQL, graphSQL);
         vertexCount = getVertexCount(vertexCountSQL);
-        retrieveGraphData(graphSQL, &vertices, vertexCount, NULL);
+        retrieveGraphData(graphSQL, &vertices, vertexCount);
         g->vertices = vertices;
         g->vertex_count = vertexCount;
         graphCache[j++] = g;
@@ -232,6 +240,9 @@ static ModeGraph deepCopyModeGraphFromCache(int modeId) {
 }
 
 static ModeGraph shallowCopyModeGraphFromCache(int modeId) {
+#ifdef DEBUG
+    printf("[DEBUG][mmspa4pg.c::shallowCopyModeGraphFromCache]copy graph by reference\n");
+#endif
     for (int i = 0; i < TOTAL_MODES; i++)
         if (graphCache[i]->id == modeId)
             return graphCache[i];
@@ -283,8 +294,7 @@ static int initGraphs(int graphCount) {
     return EXIT_SUCCESS;
 }
 
-static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount, 
-        const char *costFactor) {
+static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) {
     /* read the edges and vertices from the query result */
     int recordCount = 0, i = 0, outgoingCursor = 0, vertexCursor = 0;
     recordCount = PQntuples(res);	
@@ -526,7 +536,7 @@ static int getVertexCount(const char *vertexCountSQL) {
 
 // Retrieve and read graph
 static void retrieveGraphData(const char *graphSQL, Vertex **vertices, 
-        int vertexCount, RoutingPlan *p) {
+        int vertexCount) {
     PGresult *graphResults;
     graphResults = PQexec(conn, graphSQL);
     if (PQresultStatus(graphResults) != PGRES_TUPLES_OK) {
@@ -539,7 +549,7 @@ static void retrieveGraphData(const char *graphSQL, Vertex **vertices,
     printf("[DEBUG][graphassembler.c::retrieveGraphData] SQL of query graphs: %s\n", graphSQL);
     printf("[DEBUG][graphassembler.c::retrieveGraphData] Reading graphs... ");
 #endif
-    readGraph(graphResults, vertices, vertexCount, p->cost_factor);
+    readGraph(graphResults, vertices, vertexCount);
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::retrieveGraphData] done.\n");
 #endif
@@ -654,9 +664,11 @@ static void retrieveSwitchPoints(const char *switchSQL, int *spCount,
     PQclear(switchpointResults);
 }
 
+static ModeGraph pGraph = GNULL;
+
 static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p) {
     /*a new graph is necessary for public transit network*/
-    ModeGraph pGraph = (ModeGraph)malloc(sizeof(struct ModeGraph));
+    pGraph = (ModeGraph)malloc(sizeof(struct ModeGraph));
     int vCount = 0, i = 0;
     ModeGraph fg = deepCopyModeGraphFromCache(FOOT);
     ModeGraph pg[p->public_transit_mode_count];
@@ -675,6 +687,25 @@ static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p) {
     pGraph->vertex_count = vCount;
     return pGraph;
 }
+
+static void disposePublicModeGraph() {
+    if (pGraph == GNULL)
+        return;
+    for (int i = 0; i < pGraph->vertex_count; i++) {
+        Edge current = pGraph->vertices[i]->outgoing;
+        while (current != ENULL) {
+            Edge temp = current->adjNext;
+            free(current);
+            current = ENULL;
+            current = temp;
+        }
+        pGraph->vertices[i]->outgoing = ENULL;
+        free(pGraph->vertices[i]);
+        pGraph->vertices[i] = VNULL;
+    }
+    free(pGraph);
+    pGraph = GNULL;
+} 
 
 // Combine all the selected public transit modes and foot networks
 // if current mode_id is PUBLIC_TRANSPORTATION
