@@ -46,6 +46,7 @@ void MSPsetSwitchCondition(int index, const char *spCondition);
 void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
 void MSPsetTargetConstraint(VertexValidationChecker callback);
 void MSPsetCostFactor(const char *costFactor);
+void MSPclearRoutingPlan();
 
 /* v1.x API */
 void CreateRoutingPlan(int modeCount, int publicModeCount);
@@ -55,7 +56,5 @@ void SetSwitchConditionListItem(int index, const char *spCondition);
 void SetSwitchingConstraint(int index, VertexValidationChecker callback);
 void SetTargetConstraint(VertexValidationChecker callback);
 void SetCostFactor(const char *costFactor);
-
-void DisposeRoutingPlan();
 
 #endif   /* ----- #ifndef ROUTINGPLAN_INC  ----- */
