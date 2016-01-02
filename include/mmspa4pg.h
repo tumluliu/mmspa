@@ -25,26 +25,28 @@
  */
 
 /* Function of initializing the library, preparing and caching mode graph data */
-int MSPinit(const char *pgConnStr);
+extern int MSPinit(const char *pgConnStr);
 /* Functions of creating multimodal routing plan */
-void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
-void MSPsetMode(int index, int modeId);
-void MSPsetPublicTransit(int index, int modeId);
-void MSPsetSwitchCondition(int index, const char *spCondition);
-void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
-void MSPsetTargetConstraint(VertexValidationChecker callback);
-void MSPsetCostFactor(const char *costFactor);
+extern void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
+extern void MSPsetMode(int index, int modeId);
+extern void MSPsetPublicTransit(int index, int modeId);
+extern void MSPsetSwitchCondition(int index, const char *spCondition);
+extern void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
+extern void MSPsetTargetConstraint(VertexValidationChecker callback);
+extern void MSPsetCostFactor(const char *costFactor);
 /* Function of assembling multimodal graph set for each routing plan */
-int MSPassembleGraphs();
+extern int MSPassembleGraphs();
 /* Functions of finding multimodal shortest paths */
-Path **MSPfindPath(int64_t source, int64_t target);
-void MSPtwoq(int64_t source);
+extern Path **MSPfindPath(int64_t source, int64_t target);
+extern void MSPtwoq(int64_t source);
 /* Functions of fetching and releasing the path planning results */
-Path **MSPgetFinalPath(int64_t source, int64_t target);
-double MSPgetFinalCost(int64_t target, const char *costField);
-void MSPclearPaths(Path **paths);
+extern Path **MSPgetFinalPath(int64_t source, int64_t target);
+extern double MSPgetFinalCost(int64_t target, const char *costField);
+extern void MSPclearPaths(Path **paths);
 /* Function of disposing the library memory */
-void MSPfinalize();
+extern void MSPclearActiveGraphs();
+extern void MSPclearRoutingPlan();
+extern void MSPfinalize();
 
 /*
  * v1.x API
