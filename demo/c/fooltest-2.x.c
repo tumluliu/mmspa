@@ -15,7 +15,7 @@ Description : Fool test for mmspa library v2.x
 
 int main(void) {
     /* 50 sources selected from the underground network randomly by another program for test */
-    const char *testSources[] = {
+    const char *testWalkingSources[] = {
         "122786152450", "122786152495", "122786152501", "121533104185",
         "122786152522", "122786152527", "122786152534", "121742819427",
         "121742819429", "121742819430", "121742819431", "121742819432",
@@ -31,6 +31,22 @@ int main(void) {
         "12654215638", "12366905819"
     };
 
+    const char *testDrivingSources[] = {
+        "112649568284", "1159899824", "112649568293", "112649568301",
+        "112649568302", "111745870525", "111045946049", "111554855132",
+        "111554855176", "11388584211", "112484942149", "112484942151",
+        "11185859306", "111593652638", "113163370912", "113163370918",
+        "112940897701", "111593652768", "111593652777", "112467815177",
+        "112505287056", "11186209505", "11261706984", "112450339563",
+        "11891901167", "11891901175", "11891901177", "11663311677",
+        "11663311681", "11663311682", "11194598245", "11194598250",
+        "11255415757", "111059928031", "111059928034", "111981626400",
+        "111981626405", "111999452205", "11330913327", "111999452209",
+        "11330913330", "11330913332", "11330913334", "11146013536",
+        "111999452227", "111593653317", "111059928164", "111059928204",
+        "111059928207", "111151154406",
+    };
+
     const int64_t testDrivingSource = 11618163561; 
     const int64_t testWalkingSource = 123256574726; 
     const int64_t testTarget = 12672741190;
@@ -43,45 +59,41 @@ int main(void) {
     printf("mmspa lib initialized. \n");
     printf("Creating multimodal routing plans... ");
     //CreateRoutingPlan(1, 1);
-    MSPcreateRoutingPlan(2, 0);
+    MSPcreateRoutingPlan(2, 2);
     MSPsetMode(0, PRIVATE_CAR);
     MSPsetMode(1, FOOT);
-    //SetPublicTransitModeSetItem(0, UNDERGROUND);
+    SetPublicTransitModeSetItem(0, UNDERGROUND);
+    SetPublicTransitModeSetItem(1, TRAM);
     MSPsetSwitchCondition(0, "type_id=91 AND is_available=TRUE");
     MSPsetCostFactor("speed");
     MSPsetTargetConstraint(NULL);
     printf("done! \n");
     struct timeval start_time, finish_time;
     float duration = 0.0, averageTime = 0.0;
-    /* read graphs */
-    printf("Constructing multimodal graphs from PostgreSQL database... ");
-    gettimeofday(&start_time, NULL);
-    if (MSPassembleGraphs() != EXIT_SUCCESS) { 
-        printf("read graphs failed \n");
-        return EXIT_FAILURE;
-    }
-    gettimeofday(&finish_time, NULL);
-    duration = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000000;
-    printf("done! \n");
-    printf(
-            "Multimodal graph construction:   %8.4f   seconds\n",
-            duration);
     printf("Calculating multimodal routes...\n");
-    printf("Test times: 50\n");
+    /*printf("Test times: 50\n");*/
     gettimeofday(&start_time, NULL);
-    Path **finalPath = MSPfindPath(testDrivingSource, testTarget);
-    double final_cost = 0.0;
-    final_cost = MSPgetFinalCost(testTarget, "distance");
-    printf("Final cost is: %f\n", final_cost);
-    //	for (int i = 0; i < 50; i++)
-    //		MultimodalTwoQ(atoll(testSources[i]));
+    double finalCost = 0.0;
+    for (int i = 0; i < 50; i++) {
+#ifdef DEBUG
+        printf("[DEBUG] ============== %d ==============\n", i+1);
+#endif
+        Path **finalPath = MSPfindPath(atoll(testDrivingSources[i]), testTarget);
+        finalCost = MSPgetFinalCost(testTarget, "duration");
+#ifdef DEBUG
+        printf("[DEBUG] Duration of the final path: %f\n", finalCost);
+#endif
+        MSPclearPaths(finalPath);
+    }
+    MSPclearRoutingPlan();
     gettimeofday(&finish_time, NULL);
-    averageTime = (double) ((finish_time.tv_sec * 1000000 + finish_time.tv_usec) - (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000 / 50;
+    averageTime = (double) (
+            (finish_time.tv_sec * 1000000 + finish_time.tv_usec) - 
+            (start_time.tv_sec * 1000000 + start_time.tv_usec)) / 1000 / 50;
     printf(
             "Calculation finished, average time consumed by MultimodalTwoQ:   %10.2f   milliseconds\n",
             averageTime);
 
-    MSPclearPaths(finalPath);
     MSPfinalize();
     return EXIT_SUCCESS;
 }
