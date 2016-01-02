@@ -94,7 +94,7 @@ void SetCostFactor(const char *costFactor) {
 	MSPsetCostFactor(costFactor);
 }
 
-void DisposeRoutingPlan() {
+void MSPclearRoutingPlan() {
 	if (plan->mode_count > 1) {
 		free(plan->switch_condition_list);
 		free(plan->switch_constraint_list);

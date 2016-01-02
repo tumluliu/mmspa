@@ -15,15 +15,28 @@
  * =====================================================================================
  */
   
+#include <stdio.h>
 #include <assert.h>
 #include "../include/mmspa4pg.h"
 #include "../include/graphassembler.h"
 #include "../include/routingresult.h"
  
-Path **FindMultimodalPath(int64_t source, int64_t target) {
-    assert(AssembleGraphs());
+Path **MSPfindPath(int64_t source, int64_t target) {
+#ifdef DEBUG
+    printf("[DEBUG][mmspa4pg.c::MSPfindPath]assemble active graphs\n");
+#endif
+    assert(!MSPassembleGraphs());
+#ifdef DEBUG
+    printf("[DEBUG][mmspa4pg.c::MSPfindPath]find multimodal shortest paths\n");
+#endif
     MultimodalTwoQ(source);
-    Path **finalPath = GetFinalPath(source, target);
-    Dispose();
+#ifdef DEBUG
+    printf("[DEBUG][mmspa4pg.c::MSPfindPath]get the found path\n");
+#endif
+    Path **finalPath = MSPgetFinalPath(source, target);
+#ifdef DEBUG
+    printf("[DEBUG][mmspa4pg.c::MSPfindPath]dispose heap memory for this routing plan\n");
+#endif
+    MSPclearActiveGraphs();
     return finalPath;
 }

@@ -28,6 +28,10 @@ static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *recordList,
         int recordListLength);
 
 Path **GetFinalPath(int64_t source, int64_t target) {
+    return MSPgetFinalPath(source, target);
+}
+
+Path **MSPgetFinalPath(int64_t source, int64_t target) {
 	extern SwitchPoint **switchpointsArr;
 	extern int *switchpointCounts;
 	int i = 0, pathVertexCount = 1, j = 0;
@@ -74,7 +78,7 @@ Path **GetFinalPath(int64_t source, int64_t target) {
 			        pathRecordCountArray[i]);
 			if (pr == NULL) {
 				// no path found
-				DisposePaths(paths);
+				MSPclearPaths(paths);
 				return NULL;
 			}
 			pathVertexCount++;
@@ -115,6 +119,10 @@ void DisposeResultPathTable() {
 }
 
 double GetFinalCost(int64_t target, const char *costField) {
+    return MSPgetFinalCost(target, costField);
+}
+
+double MSPgetFinalCost(int64_t target, const char *costField) {
 	extern ModeGraph *activeGraphs;
 	extern int graphCount;
 	Vertex targetVertex = BinarySearchVertexById(
@@ -137,6 +145,10 @@ double GetFinalCost(int64_t target, const char *costField) {
 }
 
 void DisposePaths(Path **paths) {
+    MSPclearPaths(paths);
+}
+
+void MSPclearPaths(Path **paths) {
 	int i = 0;
 	for (i = 0; i < inputModeCount; i++) {
 		free(paths[i]->vertex_list);
