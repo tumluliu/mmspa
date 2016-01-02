@@ -21,13 +21,17 @@
 
 #include "modegraph.h"
 
-int Init(const char *pgConnStr);
-int LoadGraphFromDb(const char *pgConnStr);
-int AssembleGraphs();
-void Dispose();
+/* Function of initializing the library, preparing and caching mode graph data */
+int MSPinit(const char *pgConnStr);
+/* Function of assembling multimodal graph set for each routing plan */
+int MSPassembleGraphs();
+/* Function of disposing the library memory */
+void MSPdisposeRoutingPlanResource();
+void MSPfinalize();
 /* The following functions are obsoleted, but is reserved for the moment for the 
  * sake of compatability */
 int Parse();
+void Dispose();
 int ConnectDB(const char *pgConnStr);
 void DisconnectDB();
 
