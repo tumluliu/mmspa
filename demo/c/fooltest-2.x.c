@@ -52,11 +52,12 @@ int main(void) {
     const int64_t testTarget = 12672741190;
     /* change the PostgreSQL connection string according to your own config */
     const char *conninfo = "dbname = 'testdb' user = 'liulu' password = 'workhard'";
+    printf("Initializing mmspa lib... \n");
     if (MSPinit(conninfo) != EXIT_SUCCESS) {
         printf("Init mmspa library failed.\n");
         return EXIT_FAILURE;
     }
-    printf("mmspa lib initialized. \n");
+    printf("mmspa lib initialized, multimodal graphs have been cached. \n");
     printf("Creating multimodal routing plans... ");
     //CreateRoutingPlan(1, 1);
     MSPcreateRoutingPlan(2, 2);
