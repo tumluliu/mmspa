@@ -44,7 +44,7 @@ extern Path **MSPgetFinalPath(int64_t source, int64_t target);
 extern double MSPgetFinalCost(int64_t target, const char *costField);
 extern void MSPclearPaths(Path **paths);
 /* Function of disposing the library memory */
-extern void MSPclearActiveGraphs();
+extern void MSPclearGraphs();
 extern void MSPclearRoutingPlan();
 extern void MSPfinalize();
 
