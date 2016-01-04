@@ -20,24 +20,19 @@
 RoutingPlan *plan = NULL;
 
 void MSPcreateRoutingPlan(int modeCount, int publicModeCount) {
-	plan = (RoutingPlan*) malloc(sizeof(RoutingPlan));
+	plan = (RoutingPlan *) malloc(sizeof(RoutingPlan));
 	plan->mode_count = modeCount;
 	plan->public_transit_mode_count = publicModeCount;
-	plan->mode_id_list = (int*) calloc(modeCount, sizeof(int));
-	plan->target_constraint = NULL;
+	plan->mode_id_list = (int *) calloc(modeCount, sizeof(int));
+	plan->target_constraint = (VertexValidationChecker)NULL;
 	if (modeCount > 1) {
-		plan->switch_condition_list = (const char**) calloc(modeCount - 1, 
-		        sizeof(const char*));
-		plan->switch_constraint_list = (VertexValidationChecker*) calloc(
+		plan->switch_condition_list = (char **) calloc(modeCount - 1, 
+		        sizeof(char *));
+		plan->switch_constraint_list = (VertexValidationChecker *) calloc(
 		        modeCount - 1, sizeof(VertexValidationChecker));
-		int i = 0;
-		for (i = 0; i < modeCount; i++) {
-			plan->switch_condition_list[i] = NULL;
-			plan->switch_constraint_list[i] = NULL;
-		}
 	}
 	if (publicModeCount > 0)
-		plan->public_transit_mode_id_set = (int*)calloc(publicModeCount, 
+		plan->public_transit_mode_id_set = (int *) calloc(publicModeCount, 
 		        sizeof(int));
 }
 
@@ -50,7 +45,9 @@ void MSPsetPublicTransit(int index, int modeId) {
 }
 
 void MSPsetSwitchCondition(int index, const char *spCondition) {
-	plan->switch_condition_list[index] = spCondition;
+    plan->switch_condition_list[index] = (char *) calloc(strlen(spCondition)+1, 
+            sizeof(char));
+	strcpy(plan->switch_condition_list[index], spCondition);
 }
 
 void MSPsetSwitchConstraint(int index, VertexValidationChecker callback) {
@@ -62,7 +59,8 @@ void MSPsetTargetConstraint(VertexValidationChecker callback) {
 }
 
 void MSPsetCostFactor(const char *costFactor) {
-	plan->cost_factor = costFactor;
+    plan->cost_factor = (char *) calloc(strlen(costFactor)+1, sizeof(char));
+	strcpy(plan->cost_factor, costFactor);
 }
 
 /* v1.x API, for compatibility */
@@ -96,9 +94,17 @@ void SetCostFactor(const char *costFactor) {
 
 void MSPclearRoutingPlan() {
 	if (plan->mode_count > 1) {
+	    for (int i = 0; i < plan->mode_count - 1; i++)
+	        free(plan->switch_condition_list[i]);
 		free(plan->switch_condition_list);
 		free(plan->switch_constraint_list);
 	}
+	if (plan->public_transit_mode_count > 1) {
+	    free(plan->public_transit_mode_id_set);
+	    plan->public_transit_mode_id_set = NULL;
+    }
+    free(plan->cost_factor);
+    plan->cost_factor = NULL;
 	plan->switch_condition_list = NULL;
 	plan->switch_constraint_list = NULL;
 	plan->target_constraint = NULL;
