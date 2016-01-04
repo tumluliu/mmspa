@@ -28,12 +28,12 @@ typedef int (*VertexValidationChecker)(Vertex vertexToCheck);
 
 struct RoutingPlan
 {
-	int                     *mode_id_list;
+	int                     *modes;
 	int                     mode_count;
-	int                     *public_transit_mode_id_set;
+	int                     *public_transit_modes;
 	int                     public_transit_mode_count;
-	char                    **switch_condition_list;
-	VertexValidationChecker *switch_constraint_list;
+	char                    **switch_conditions;
+	VertexValidationChecker *switch_constraints;
 	VertexValidationChecker target_constraint;
 	char                    *cost_factor;
 };

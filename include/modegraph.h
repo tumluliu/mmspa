@@ -71,9 +71,9 @@ struct Edge
 	double  length;
 	double  length_factor;
 	double  speed_factor;
-	int64_t from_vertex_id;
-	int64_t to_vertex_id;
-	Edge    adjNext;
+	int64_t from_id;
+	int64_t to_id;
+	Edge    adj_next;
 };
 
 struct Vertex
@@ -83,7 +83,7 @@ struct Vertex
 	double  distance;
 	double  duration;
 	double  walking_distance;
-	double  walking_time;
+	double  walking_duration;
 	/* TODO: how about other types of cost along the path, e.g. gas, energy,
 	 * battery, fatigue, etc.? Here the ideal way is to make such metrics
 	 * configurable. */

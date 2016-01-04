@@ -84,7 +84,7 @@ int MSPassembleGraphs() {
     int i = 0;
     graphCount = plan->mode_count;
     for (i = 0; i < plan->mode_count; i++) {
-        int modeId = plan->mode_id_list[i];
+        int modeId = plan->modes[i];
         char switchpointSQL[1024] = "";
         ModeGraph g = GNULL;
 #ifdef DEBUG
@@ -142,7 +142,7 @@ int Parse() {
     int i = 0;
     graphCount = plan->mode_count;
     for (i = 0; i < plan->mode_count; i++) {
-        int modeId = plan->mode_id_list[i];
+        int modeId = plan->modes[i];
         int vertexCount = 0;
         char switchpointSQL[1024] = "";
         char vertexCountSQL[512] = "";
@@ -268,16 +268,16 @@ static ModeGraph cloneModeGraph(ModeGraph g) {
             Edge ogE = g->vertices[i]->outgoing;
             for (int j = 0; j < tmpV->outdegree; j++) {
                 Edge tmpE = (Edge) malloc(sizeof(struct Edge));
-                tmpE->from_vertex_id = ogE->from_vertex_id;
-                tmpE->to_vertex_id = ogE->to_vertex_id;
+                tmpE->from_id = ogE->from_id;
+                tmpE->to_id = ogE->to_id;
                 tmpE->length = ogE->length;
                 tmpE->speed_factor = ogE->speed_factor;
                 tmpE->length_factor = ogE->length_factor;
                 tmpE->mode_id = ogE->mode_id;
                 if (j == 0) { tmpV->outgoing = tmpE; }
-                else { lastE->adjNext = tmpE; }
+                else { lastE->adj_next = tmpE; }
                 lastE = tmpE;
-                ogE = ogE->adjNext;
+                ogE = ogE->adj_next;
             }
         }
         vertices[i] = tmpV;
@@ -329,9 +329,9 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
             outgoingCursor = 0;
         Edge tmpEdge = (Edge) malloc(sizeof(struct Edge));
         /* from vertex id */
-        tmpEdge->from_vertex_id = atoll(PQgetvalue(res, i, 0));
+        tmpEdge->from_id = atoll(PQgetvalue(res, i, 0));
         /* to vertex id */
-        tmpEdge->to_vertex_id = atoll(PQgetvalue(res, i, 1));
+        tmpEdge->to_id = atoll(PQgetvalue(res, i, 1));
         /* edge length */
         tmpEdge->length = atof(PQgetvalue(res, i, 2));
         /* speed factor */
@@ -345,11 +345,11 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
         if (tmpVertex->outgoing == ENULL)
             tmpVertex->outgoing = tmpEdge;
         else {
-            while (outgoingEdge->adjNext != ENULL)
-                outgoingEdge = outgoingEdge->adjNext;
-            outgoingEdge->adjNext = tmpEdge;
+            while (outgoingEdge->adj_next != ENULL)
+                outgoingEdge = outgoingEdge->adj_next;
+            outgoingEdge->adj_next = tmpEdge;
         }
-        tmpEdge->adjNext = ENULL;
+        tmpEdge->adj_next = ENULL;
 #ifdef DEBUG
         /*printf("[DEBUG] ::readGraph, processed %d record, vertex id: %lld\n", */
         /*i+1, tmpVertex->id);*/
@@ -402,9 +402,9 @@ static void embedSwitchPoints(Vertex *vertexArray, int vertexCount,
         Edge tmpEdge;
         tmpEdge = (Edge) malloc(sizeof(struct Edge));
         /* from vertex */
-        tmpEdge->from_vertex_id = switchpointArray[i]->from_vertex_id;
+        tmpEdge->from_id = switchpointArray[i]->from_vertex_id;
         /* to vertex */
-        tmpEdge->to_vertex_id = switchpointArray[i]->to_vertex_id;
+        tmpEdge->to_id = switchpointArray[i]->to_vertex_id;
         /* attach end to the adjacency list of start */
         // TODO: should check if the vertex searching result is null
         Vertex vertexFrom = BinarySearchVertexById(vertexArray, 0, 
@@ -413,13 +413,13 @@ static void embedSwitchPoints(Vertex *vertexArray, int vertexCount,
         if (vertexFrom->outgoing == ENULL)
             vertexFrom->outgoing = tmpEdge;
         else {
-            while (outgoingEdge->adjNext != ENULL)
-                outgoingEdge = outgoingEdge->adjNext;
-            outgoingEdge->adjNext = tmpEdge;
+            while (outgoingEdge->adj_next != ENULL)
+                outgoingEdge = outgoingEdge->adj_next;
+            outgoingEdge->adj_next = tmpEdge;
         }
         vertexFrom->outdegree++;
         tmpEdge->mode_id = FOOT;
-        tmpEdge->adjNext = ENULL;
+        tmpEdge->adj_next = ENULL;
         /* edge length */
         tmpEdge->length = switchpointArray[i]->length;
         /* speed factor */
@@ -489,16 +489,16 @@ static int validateGraph(ModeGraph g) {
             }
             Edge pe = g->vertices[i]->outgoing;
             while (pe != ENULL) {
-                if (pe->from_vertex_id != g->vertices[i]->id) {
+                if (pe->from_id != g->vertices[i]->id) {
                     // found foreign edges not emitted from the current vertex
                     printf("FATAL: bad vertex structure found! \
                             Found an outgoing edge NOT belonging to this vertex. \
-                            Problematic vertex id is %lld, edge's from_vertex_id \
-                            is %lld\n", g->vertices[i]->id, pe->from_vertex_id);
+                            Problematic vertex id is %lld, edge's from_id \
+                            is %lld\n", g->vertices[i]->id, pe->from_id);
                     return EXIT_FAILURE;
                 }
                 realOutdegree++;
-                pe = pe->adjNext;
+                pe = pe->adj_next;
             }
             if (realOutdegree != claimedOutdegree) {
                 // real outdegree calculated by counting the outgoing edges is 
@@ -562,9 +562,9 @@ static char *constructPublicModeClause(RoutingPlan *p) {
     static char publicModeClause[256];
     sprintf(publicModeClause, 
             "vertices.mode_id = %d OR vertices.mode_id = %d", 
-            FOOT, p->public_transit_mode_id_set[0]);
+            FOOT, p->public_transit_modes[0]);
     for (j = 1; j < p->public_transit_mode_count; j++) {
-        int publicModeId = p->public_transit_mode_id_set[j];
+        int publicModeId = p->public_transit_modes[j];
         char strPublicModeIdSeg[32];
         sprintf(strPublicModeIdSeg, " OR vertices.mode_id = %d", 
                 publicModeId);
@@ -607,10 +607,10 @@ static void appendPublicSwitchClause(RoutingPlan *p, char *switchSQL) {
     char psClause[1024];
     sprintf(psClause, " ((from_mode_id = %d AND to_mode_id = %d) OR \
         (from_mode_id = %d AND to_mode_id = %d))", 
-            FOOT, p->public_transit_mode_id_set[0], 
-            p->public_transit_mode_id_set[0], FOOT);
+            FOOT, p->public_transit_modes[0], 
+            p->public_transit_modes[0], FOOT);
     for (j = 1; j < p->public_transit_mode_count; j++) {
-        int publicModeId = p->public_transit_mode_id_set[j];	
+        int publicModeId = p->public_transit_modes[j];	
         char psSegment[128];
         sprintf(psSegment, " OR ((from_mode_id = %d AND to_mode_id = %d) OR \
             (from_mode_id = %d AND to_mode_id = %d))", 
@@ -620,8 +620,8 @@ static void appendPublicSwitchClause(RoutingPlan *p, char *switchSQL) {
     }
     for (j = 0; j < p->public_transit_mode_count - 1; j++)
         for (k = j + 1; k < p->public_transit_mode_count; k++) {
-            int fromPublicModeId = p->public_transit_mode_id_set[j];
-            int toPublicModeId = p->public_transit_mode_id_set[k];
+            int fromPublicModeId = p->public_transit_modes[j];
+            int toPublicModeId = p->public_transit_modes[k];
             // Retrieve switch point infos between (j,k)
             char psSegment[128];
             sprintf(psSegment, " OR ((from_mode_id = %d AND to_mode_id = %d) OR \
@@ -672,7 +672,7 @@ static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p) {
     ModeGraph fg = deepCopyModeGraphFromCache(FOOT);
     ModeGraph pg[p->public_transit_mode_count];
     for (i = 0; i < p->public_transit_mode_count; i++) {
-        pg[i] = deepCopyModeGraphFromCache(p->public_transit_mode_id_set[i]);
+        pg[i] = deepCopyModeGraphFromCache(p->public_transit_modes[i]);
         vCount += pg[i]->vertex_count;
     }
     Vertex *vertices = (Vertex *)calloc(vCount, sizeof(Vertex));
@@ -693,7 +693,7 @@ static void disposePublicModeGraph() {
     for (int i = 0; i < pGraph->vertex_count; i++) {
         Edge current = pGraph->vertices[i]->outgoing;
         while (current != ENULL) {
-            Edge temp = current->adjNext;
+            Edge temp = current->adj_next;
             free(current);
             current = ENULL;
             current = temp;
@@ -733,19 +733,19 @@ static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i) {
     printf("[DEBUG][graphassembler.c::constructSwitchPointSQL] parameter switchFilter Cond passed in: %s\n", switchSQL);
 #endif
     int j = 0;
-    if ((p->mode_id_list[i-1] != PUBLIC_TRANSPORTATION) && 
-            (p->mode_id_list[i] != PUBLIC_TRANSPORTATION))
+    if ((p->modes[i-1] != PUBLIC_TRANSPORTATION) && 
+            (p->modes[i] != PUBLIC_TRANSPORTATION))
         sprintf(switchSQL, 
                 "SELECT from_vertex_id, to_vertex_id, cost FROM \
                 switch_points WHERE from_mode_id=%d AND \
                 to_mode_id=%d AND %s", 
-                p->mode_id_list[i-1], p->mode_id_list[i], 
-                p->switch_condition_list[i-1]);
-    else if (p->mode_id_list[i-1] == PUBLIC_TRANSPORTATION) {
+                p->modes[i-1], p->modes[i], 
+                p->switch_conditions[i-1]);
+    else if (p->modes[i-1] == PUBLIC_TRANSPORTATION) {
         char fromModeClause[256];
         sprintf(fromModeClause, "from_mode_id = %d ", FOOT);
         for (j = 0; j < p->public_transit_mode_count; j++) {
-            int publicModeId = p->public_transit_mode_id_set[j];
+            int publicModeId = p->public_transit_modes[j];
             char publicSegClause[128];
             sprintf(publicSegClause, "OR from_mode_id = %d ", 
                     publicModeId);
@@ -754,14 +754,14 @@ static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i) {
         sprintf(switchSQL, 
                 "SELECT from_vertex_id, to_vertex_id, cost FROM \
                 switch_points WHERE (%s) AND to_mode_id=%d AND %s", 
-                fromModeClause, p->mode_id_list[i], 
-                p->switch_condition_list[i-1]);
+                fromModeClause, p->modes[i], 
+                p->switch_conditions[i-1]);
     }
-    else if (p->mode_id_list[i] == PUBLIC_TRANSPORTATION) {
+    else if (p->modes[i] == PUBLIC_TRANSPORTATION) {
         char toModeClause[256];
         sprintf(toModeClause, "to_mode_id = %d ", FOOT);
         for (j = 0; j < p->public_transit_mode_count; j++) {
-            int publicModeId = p->public_transit_mode_id_set[j];
+            int publicModeId = p->public_transit_modes[j];
             char publicSegClause[128];
             sprintf(publicSegClause, "OR to_mode_id = %d ", publicModeId);
             strcat(toModeClause, publicSegClause);
@@ -769,8 +769,8 @@ static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i) {
         sprintf(switchSQL, 
                 "SELECT from_vertex_id, to_vertex_id, cost FROM \
                 switch_points WHERE from_mode_id=%d AND (%s) AND %s", 
-                p->mode_id_list[i-1], toModeClause, 
-                p->switch_condition_list[i-1]);
+                p->modes[i-1], toModeClause, 
+                p->switch_conditions[i-1]);
     }
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::constructSwitchPointSQL] parameter switchFilter Cond after constructing: %s\n", switchSQL);
@@ -782,7 +782,7 @@ static void disposeActiveGraphs() {
         for (int j = 0; j < activeGraphs[i]->vertex_count; j++) {
             Edge p, q;
             for (p = graphCache[i]->vertices[j]->outgoing; p != ENULL; p = q) {
-                q = p->adjNext;
+                q = p->adj_next;
                 free(p);
                 p = ENULL;
             }
@@ -803,7 +803,7 @@ static void disposeGraphCache() {
         for (int j = 0; j < graphCache[i]->vertex_count; j++) {
             Edge p, q;
             for (p = graphCache[i]->vertices[j]->outgoing; p != ENULL; p = q) {
-                q = p->adjNext;
+                q = p->adj_next;
                 free(p);
                 p = ENULL;
             }

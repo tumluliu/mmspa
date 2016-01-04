@@ -137,8 +137,8 @@ double MSPgetFinalCost(int64_t target, const char *costField) {
 			return targetVertex->duration;
 		else if (strcmp(costField, "walking_distance") == 0)
 			return targetVertex->walking_distance;
-		else if (strcmp(costField, "walking_time") == 0)
-			return targetVertex->walking_time;
+		else if (strcmp(costField, "walking_duration") == 0)
+			return targetVertex->walking_duration;
 		else
 			return -1;
 	}

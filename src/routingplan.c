@@ -23,35 +23,35 @@ void MSPcreateRoutingPlan(int modeCount, int publicModeCount) {
 	plan = (RoutingPlan *) malloc(sizeof(RoutingPlan));
 	plan->mode_count = modeCount;
 	plan->public_transit_mode_count = publicModeCount;
-	plan->mode_id_list = (int *) calloc(modeCount, sizeof(int));
-	plan->target_constraint = (VertexValidationChecker)NULL;
+	plan->modes = (int *) calloc(modeCount, sizeof(int));
+	plan->target_constraint = NULL;
 	if (modeCount > 1) {
-		plan->switch_condition_list = (char **) calloc(modeCount - 1, 
+		plan->switch_conditions = (char **) calloc(modeCount - 1, 
 		        sizeof(char *));
-		plan->switch_constraint_list = (VertexValidationChecker *) calloc(
+		plan->switch_constraints = (VertexValidationChecker *) calloc(
 		        modeCount - 1, sizeof(VertexValidationChecker));
 	}
 	if (publicModeCount > 0)
-		plan->public_transit_mode_id_set = (int *) calloc(publicModeCount, 
+		plan->public_transit_modes = (int *) calloc(publicModeCount, 
 		        sizeof(int));
 }
 
 void MSPsetMode(int index, int modeId) {
-	plan->mode_id_list[index] = modeId;
+	plan->modes[index] = modeId;
 }
 
 void MSPsetPublicTransit(int index, int modeId) {
-	plan->public_transit_mode_id_set[index] = modeId;
+	plan->public_transit_modes[index] = modeId;
 }
 
 void MSPsetSwitchCondition(int index, const char *spCondition) {
-    plan->switch_condition_list[index] = (char *) calloc(strlen(spCondition)+1, 
+    plan->switch_conditions[index] = (char *) calloc(strlen(spCondition)+1, 
             sizeof(char));
-	strcpy(plan->switch_condition_list[index], spCondition);
+	strcpy(plan->switch_conditions[index], spCondition);
 }
 
 void MSPsetSwitchConstraint(int index, VertexValidationChecker callback) {
-	plan->switch_constraint_list[index] = callback;
+	plan->switch_constraints[index] = callback;
 }
 
 void MSPsetTargetConstraint(VertexValidationChecker callback) {
@@ -95,21 +95,21 @@ void SetCostFactor(const char *costFactor) {
 void MSPclearRoutingPlan() {
 	if (plan->mode_count > 1) {
 	    for (int i = 0; i < plan->mode_count - 1; i++)
-	        free(plan->switch_condition_list[i]);
-		free(plan->switch_condition_list);
-		free(plan->switch_constraint_list);
+	        free(plan->switch_conditions[i]);
+		free(plan->switch_conditions);
+		free(plan->switch_constraints);
 	}
 	if (plan->public_transit_mode_count > 1) {
-	    free(plan->public_transit_mode_id_set);
-	    plan->public_transit_mode_id_set = NULL;
+	    free(plan->public_transit_modes);
+	    plan->public_transit_modes = NULL;
     }
     free(plan->cost_factor);
     plan->cost_factor = NULL;
-	plan->switch_condition_list = NULL;
-	plan->switch_constraint_list = NULL;
+	plan->switch_conditions = NULL;
+	plan->switch_constraints = NULL;
 	plan->target_constraint = NULL;
-	free(plan->mode_id_list);
-	plan->mode_id_list = NULL;
+	free(plan->modes);
+	plan->modes = NULL;
 	free(plan);
 	plan = NULL;
 }
