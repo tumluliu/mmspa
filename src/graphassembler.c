@@ -58,7 +58,7 @@ static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p);
 static void disposePublicModeGraph();
 static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i);
 static void disposeActiveGraphs();
-static void disposeGraphBase();
+static void disposeGraphCache();
 static void disposeSwitchPoints();
 
 /* External function declarations */
@@ -106,14 +106,16 @@ int MSPassembleGraphs() {
     return EXIT_SUCCESS;
 }
 
-void MSPclearActiveGraphs() {
+void MSPclearGraphs() {
     disposePublicModeGraph();
+    free(activeGraphs);
     disposeSwitchPoints();
     DisposeResultPathTable();
 }
 
 void MSPfinalize() {
-    disposeGraphBase();
+    disposeGraphCache();
+    disconnectPostgre();
 }
 
 /*
@@ -288,7 +290,7 @@ static int initGraphs(int graphCount) {
     activeGraphs = (ModeGraph *) calloc(graphCount, sizeof(ModeGraph));
     if (graphCount > 1) {
         switchpointsArr = (SwitchPoint **) calloc(graphCount - 1, 
-                sizeof(SwitchPoint*));
+                sizeof(SwitchPoint *));
         switchpointCounts = (int *) calloc(graphCount - 1, sizeof(int));
     }
     return EXIT_SUCCESS;
@@ -301,7 +303,7 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::readGraph] record count is %d\n", recordCount);
 #endif
-    *vertexArrayAddr = (Vertex*) calloc(vertexCount, sizeof(Vertex));
+    *vertexArrayAddr = (Vertex *) calloc(vertexCount, sizeof(Vertex));
     Vertex tmpVertex = VNULL;
     for (i = 0; i < recordCount; i++) {
         /* fields in the query results:
@@ -310,8 +312,6 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
          * vertices.out_degree, edges.mode_id
          * 4,                   5
          */
-        Edge tmpEdge;
-        tmpEdge = (Edge) malloc(sizeof(struct Edge));
         if (outgoingCursor == 0) {
             // a new group of edge records with the same from_vertex starts...	
             tmpVertex = (Vertex) malloc(sizeof(struct Vertex));
@@ -319,16 +319,15 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
             tmpVertex->id = atoll(PQgetvalue(res, i, 0));
             /* out degree */		
             tmpVertex->outdegree = atoi(PQgetvalue(res, i, 4));
-            //			tmpVertex->first = -1;
-            tmpVertex->outgoing = NULL;
-            (*vertexArrayAddr)[vertexCursor] = tmpVertex;
-            vertexCursor++;
+            tmpVertex->outgoing = ENULL;
+            (*vertexArrayAddr)[vertexCursor++] = tmpVertex;
             if (tmpVertex->outdegree == 0)
                 continue;
         }
         outgoingCursor++;
         if (outgoingCursor == atoi(PQgetvalue(res, i, 4)))
             outgoingCursor = 0;
+        Edge tmpEdge = (Edge) malloc(sizeof(struct Edge));
         /* from vertex id */
         tmpEdge->from_vertex_id = atoll(PQgetvalue(res, i, 0));
         /* to vertex id */
@@ -343,14 +342,14 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
         tmpEdge->mode_id = atoi(PQgetvalue(res, i, 5));
         /* attach end to the adjacency list of start */
         Edge outgoingEdge = tmpVertex->outgoing;
-        if (tmpVertex->outgoing == NULL)
+        if (tmpVertex->outgoing == ENULL)
             tmpVertex->outgoing = tmpEdge;
         else {
-            while (outgoingEdge->adjNext != NULL)
+            while (outgoingEdge->adjNext != ENULL)
                 outgoingEdge = outgoingEdge->adjNext;
             outgoingEdge->adjNext = tmpEdge;
         }
-        tmpEdge->adjNext = NULL;
+        tmpEdge->adjNext = ENULL;
 #ifdef DEBUG
         /*printf("[DEBUG] ::readGraph, processed %d record, vertex id: %lld\n", */
         /*i+1, tmpVertex->id);*/
@@ -411,16 +410,16 @@ static void embedSwitchPoints(Vertex *vertexArray, int vertexCount,
         Vertex vertexFrom = BinarySearchVertexById(vertexArray, 0, 
                 vertexCount - 1, switchpointArray[i]->from_vertex_id);
         Edge outgoingEdge = vertexFrom->outgoing;
-        if (vertexFrom->outgoing == NULL)
+        if (vertexFrom->outgoing == ENULL)
             vertexFrom->outgoing = tmpEdge;
         else {
-            while (outgoingEdge->adjNext != NULL)
+            while (outgoingEdge->adjNext != ENULL)
                 outgoingEdge = outgoingEdge->adjNext;
             outgoingEdge->adjNext = tmpEdge;
         }
         vertexFrom->outdegree++;
         tmpEdge->mode_id = FOOT;
-        tmpEdge->adjNext = NULL;
+        tmpEdge->adjNext = ENULL;
         /* edge length */
         tmpEdge->length = switchpointArray[i]->length;
         /* speed factor */
@@ -473,7 +472,7 @@ static int validateGraph(ModeGraph g) {
         }
         int claimedOutdegree = g->vertices[i]->outdegree;
         int realOutdegree = 0;
-        if ((claimedOutdegree == 0) && (g->vertices[i]->outgoing != NULL)) {
+        if ((claimedOutdegree == 0) && (g->vertices[i]->outgoing != ENULL)) {
             // outgoing edges are not NULL while outdegree is 0
             printf("FATAL: bad vertex structure found! \
                     Outdegree is 0 while outgoing is not NULL. \
@@ -481,7 +480,7 @@ static int validateGraph(ModeGraph g) {
             return EXIT_FAILURE;
         }
         if (claimedOutdegree >= 1) {
-            if (g->vertices[i]->outgoing == NULL) {
+            if (g->vertices[i]->outgoing == ENULL) {
                 // outgoing edge is NULL while outdegree is larger than 0
                 printf("FATAL: bad vertex structure found! \
                         Outdegree > 1 while outgoing is NULL. \
@@ -489,7 +488,7 @@ static int validateGraph(ModeGraph g) {
                 return EXIT_FAILURE;
             }
             Edge pe = g->vertices[i]->outgoing;
-            while (pe != NULL) {
+            while (pe != ENULL) {
                 if (pe->from_vertex_id != g->vertices[i]->id) {
                     // found foreign edges not emitted from the current vertex
                     printf("FATAL: bad vertex structure found! \
@@ -779,54 +778,49 @@ static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i) {
 }
 
 static void disposeActiveGraphs() {
-    int i = 0;
-    for (i = 0; i < graphCount; i++) {
-        int j = 0;
-        for (j = 0; j < activeGraphs[i]->vertex_count; j++) {
-            Edge current = activeGraphs[i]->vertices[j]->outgoing;
-            while (current != NULL) {
-                Edge temp = current->adjNext;
-                free(current);
-                current = NULL;
-                current = temp;
+    for (int i = 0; i < graphCount; i++) {
+        for (int j = 0; j < activeGraphs[i]->vertex_count; j++) {
+            Edge p, q;
+            for (p = graphCache[i]->vertices[j]->outgoing; p != ENULL; p = q) {
+                q = p->adjNext;
+                free(p);
+                p = ENULL;
             }
-            activeGraphs[i]->vertices[j]->outgoing = NULL;
             free(activeGraphs[i]->vertices[j]);
-            activeGraphs[i]->vertices[j] = NULL;
+            activeGraphs[i]->vertices[j] = VNULL;
         }
+        free(activeGraphs[i]->vertices);
+        activeGraphs[i]->vertices = NULL;
         free(activeGraphs[i]);
-        activeGraphs[i] = NULL;
+        activeGraphs[i] = GNULL;
     }
     free(activeGraphs);
     activeGraphs = NULL;
 }
 
-static void disposeGraphBase() {
-    int i = 0;
-    for (i = 0; i < TOTAL_MODES; i++) {
-        int j = 0;
-        for (j = 0; j < graphCache[i]->vertex_count; j++) {
-            Edge current = graphCache[i]->vertices[j]->outgoing;
-            while (current != NULL) {
-                Edge temp = current->adjNext;
-                free(current);
-                current = NULL;
-                current = temp;
+static void disposeGraphCache() {
+    for (int i = 0; i < TOTAL_MODES; i++) {
+        for (int j = 0; j < graphCache[i]->vertex_count; j++) {
+            Edge p, q;
+            for (p = graphCache[i]->vertices[j]->outgoing; p != ENULL; p = q) {
+                q = p->adjNext;
+                free(p);
+                p = ENULL;
             }
-            graphCache[i]->vertices[j]->outgoing = NULL;
             free(graphCache[i]->vertices[j]);
-            graphCache[i]->vertices[j] = NULL;
+            graphCache[i]->vertices[j] = VNULL;
         }
+        free(graphCache[i]->vertices);
+        graphCache[i]->vertices = NULL;
         free(graphCache[i]);
-        graphCache[i] = NULL;
+        graphCache[i] = GNULL;
     }
 }
 
 static void disposeSwitchPoints() {
     if (graphCount > 1) {
-        int i = 0, j = 0;
-        for (i = 0; i < graphCount - 1; i++) {
-            for (j = 0; j < switchpointCounts[i]; j++) {
+        for (int i = 0; i < graphCount - 1; i++) {
+            for (int j = 0; j < switchpointCounts[i]; j++) {
                 free(switchpointsArr[i][j]);
                 switchpointsArr[i][j] = NULL;
             }
