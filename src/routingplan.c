@@ -63,6 +63,28 @@ void MSPsetCostFactor(const char *costFactor) {
 	strcpy(plan->cost_factor, costFactor);
 }
 
+void MSPclearRoutingPlan() {
+	if (plan->mode_count > 1) {
+	    for (int i = 0; i < plan->mode_count - 1; i++)
+	        free(plan->switch_conditions[i]);
+		free(plan->switch_conditions);
+		free(plan->switch_constraints);
+	}
+	if (plan->public_transit_mode_count > 1) {
+	    free(plan->public_transit_modes);
+	    plan->public_transit_modes = NULL;
+    }
+    free(plan->cost_factor);
+    plan->cost_factor = NULL;
+	plan->switch_conditions = NULL;
+	plan->switch_constraints = NULL;
+	plan->target_constraint = NULL;
+	free(plan->modes);
+	plan->modes = NULL;
+	free(plan);
+	plan = NULL;
+}
+
 /* v1.x API, for compatibility */
 void CreateRoutingPlan(int modeCount, int publicModeCount) {
     MSPcreateRoutingPlan(modeCount, publicModeCount);
@@ -92,24 +114,6 @@ void SetCostFactor(const char *costFactor) {
 	MSPsetCostFactor(costFactor);
 }
 
-void MSPclearRoutingPlan() {
-	if (plan->mode_count > 1) {
-	    for (int i = 0; i < plan->mode_count - 1; i++)
-	        free(plan->switch_conditions[i]);
-		free(plan->switch_conditions);
-		free(plan->switch_constraints);
-	}
-	if (plan->public_transit_mode_count > 1) {
-	    free(plan->public_transit_modes);
-	    plan->public_transit_modes = NULL;
-    }
-    free(plan->cost_factor);
-    plan->cost_factor = NULL;
-	plan->switch_conditions = NULL;
-	plan->switch_constraints = NULL;
-	plan->target_constraint = NULL;
-	free(plan->modes);
-	plan->modes = NULL;
-	free(plan);
-	plan = NULL;
+void DisposeRoutingPlan() {
+    MSPclearRoutingPlan();
 }

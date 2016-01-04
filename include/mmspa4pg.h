@@ -72,5 +72,6 @@ void DisposePaths(Path **paths);
 /* Function of releasing the memory resource used by active mode graphs for
  * each concrete routing plan */
 void Dispose();
+void DisposeRoutingPlan();
 
 #endif /*MMSPA4PG_H_*/

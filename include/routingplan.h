@@ -56,5 +56,6 @@ void SetSwitchConditionListItem(int index, const char *spCondition);
 void SetSwitchingConstraint(int index, VertexValidationChecker callback);
 void SetTargetConstraint(VertexValidationChecker callback);
 void SetCostFactor(const char *costFactor);
+void DisposeRoutingPlan();
 
 #endif   /* ----- #ifndef ROUTINGPLAN_INC  ----- */

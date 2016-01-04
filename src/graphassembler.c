@@ -781,7 +781,7 @@ static void disposeActiveGraphs() {
     for (int i = 0; i < graphCount; i++) {
         for (int j = 0; j < activeGraphs[i]->vertex_count; j++) {
             Edge p, q;
-            for (p = graphCache[i]->vertices[j]->outgoing; p != ENULL; p = q) {
+            for (p = activeGraphs[i]->vertices[j]->outgoing; p != ENULL; p = q) {
                 q = p->adj_next;
                 free(p);
                 p = ENULL;
