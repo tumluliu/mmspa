@@ -32,10 +32,10 @@ struct RoutingPlan
 	int                     mode_count;
 	int                     *public_transit_mode_id_set;
 	int                     public_transit_mode_count;
-	const char              **switch_condition_list;
+	char                    **switch_condition_list;
 	VertexValidationChecker *switch_constraint_list;
 	VertexValidationChecker target_constraint;
-	const char              *cost_factor;
+	char                    *cost_factor;
 };
 
 /* v2.x API */
