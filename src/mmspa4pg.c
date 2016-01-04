@@ -34,9 +34,5 @@ Path **MSPfindPath(int64_t source, int64_t target) {
     printf("[DEBUG][mmspa4pg.c::MSPfindPath]get the found path\n");
 #endif
     Path **finalPath = MSPgetFinalPath(source, target);
-#ifdef DEBUG
-    printf("[DEBUG][mmspa4pg.c::MSPfindPath]dispose heap memory for this routing plan\n");
-#endif
-    MSPclearActiveGraphs();
     return finalPath;
 }
