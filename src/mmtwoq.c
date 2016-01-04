@@ -34,6 +34,10 @@ static void multimodalTwoQInit(ModeGraph g, ModeGraph last_g, SwitchPoint *spLis
         const char *costFactor);
 
 void MultimodalTwoQ(int64_t source) {
+    MSPtwoq(source);
+}
+
+void MSPtwoq(int64_t source) {
     extern ModeGraph *activeGraphs;
     extern SwitchPoint **switchpointsArr;
     extern int *switchpointCounts;
@@ -43,8 +47,8 @@ void MultimodalTwoQ(int64_t source) {
     extern RoutingPlan *plan;
     int i = 0;
 #ifdef DEBUG
-    printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start MultimodalTwoQ in libmmspa4pg. \n");
-    printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] preparing result path data structures. \n");
+    printf("[DEBUG][mmtwoq.c::MSPtwoq] start MSPtwoq in libmmspa4pg. \n");
+    printf("[DEBUG][mmtwoq.c::MSPtwoq] preparing result path data structures. \n");
 #endif
     Vertex begin = VNULL, end = VNULL, entry = VNULL;
     if (pathRecordTable != NULL)
@@ -55,10 +59,10 @@ void MultimodalTwoQ(int64_t source) {
     inputModeCount = plan->mode_count;
     for (i = 0; i < plan->mode_count; i++) {
         pathRecordCountArray[i] = activeGraphs[i]->vertex_count;
-        PathRecorder *pathRecordArray = (PathRecorder*) calloc(
+        PathRecorder *pathRecordArray = (PathRecorder *) calloc(
                 pathRecordCountArray[i], sizeof(PathRecorder));
 #ifdef DEBUG
-        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start doing multimodalTwoQInit... \n");
+        printf("[DEBUG][mmtwoq.c::MSPtwoq] start doing multimodalTwoQInit... \n");
 #endif
         if (i == 0)
             multimodalTwoQInit(activeGraphs[i], NULL, NULL, 0, NULL, source, &begin, 
@@ -66,11 +70,11 @@ void MultimodalTwoQ(int64_t source) {
         else
             multimodalTwoQInit(activeGraphs[i], activeGraphs[i-1], 
                     switchpointsArr[i-1], switchpointCounts[i-1], 
-                    plan->switch_constraint_list[i-1], source, &begin, &end, &entry, 
+                    plan->switch_constraints[i-1], source, &begin, &end, &entry, 
                     &pathRecordArray, plan->cost_factor);
 #ifdef DEBUG
-        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] done! \n");
-        printf("[DEBUG][mmtwoq.c::MultimodalTwoQ] start doing twoQSearch... \n");
+        printf("[DEBUG][mmtwoq.c::MSPtwoq] done! \n");
+        printf("[DEBUG][mmtwoq.c::MSPtwoq] start doing twoQSearch... \n");
 #endif
         twoQSearch(activeGraphs[i], &begin, &end, &entry, &pathRecordArray, 
                 plan->cost_factor, plan->target_constraint);
@@ -99,7 +103,7 @@ static void multimodalTwoQInit(ModeGraph g, ModeGraph last_g, SwitchPoint *spLis
         g->vertices[i]->distance = VERY_FAR;
         g->vertices[i]->duration = VERY_FAR;
         g->vertices[i]->walking_distance = VERY_FAR;
-        g->vertices[i]->walking_time = VERY_FAR;
+        g->vertices[i]->walking_duration = VERY_FAR;
         g->vertices[i]->parent = VNULL;
         g->vertices[i]->status = UNREACHED;
         g->vertices[i]->next = VNULL;
@@ -123,7 +127,7 @@ static void multimodalTwoQInit(ModeGraph g, ModeGraph last_g, SwitchPoint *spLis
         src->distance = 0;
         src->duration = 0;
         src->walking_distance = 0;
-        src->walking_time = 0;
+        src->walking_duration = 0;
         src->parent = src;
         (*begin) = (*end) = src;
         src->next = VNULL;
@@ -167,7 +171,7 @@ static void multimodalTwoQInit(ModeGraph g, ModeGraph last_g, SwitchPoint *spLis
                         (spList[i]->length * spList[i]->speed_factor);
                     switchTo->walking_distance = switchFrom->walking_distance + 
                         (spList[i]->length * spList[i]->length_factor);
-                    switchTo->walking_time = switchFrom->walking_time + 
+                    switchTo->walking_duration = switchFrom->walking_duration + 
                         (spList[i]->length * spList[i]->speed_factor);
                     /* enqueue switch points */
                     // INSERT_TO_BACK(switchTo)
@@ -219,7 +223,7 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
         while (edge_ij != ENULL) { 
             /* scanning edges outgoing from vertexFrom*/
             vertexTo = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, 
-                    edge_ij->to_vertex_id);
+                    edge_ij->to_id);
             if (strcmp(costFactor, "speed") == 0)
                 costNew = vertexFrom->temp_cost + 
                     (edge_ij->length * edge_ij->speed_factor);
@@ -239,11 +243,11 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
                 if (edge_ij->mode_id == FOOT) {
                     vertexTo->walking_distance = vertexFrom->walking_distance + 
                         (edge_ij->length * edge_ij->length_factor);
-                    vertexTo->walking_time = vertexFrom->walking_time + 
+                    vertexTo->walking_duration = vertexFrom->walking_duration + 
                         (edge_ij->length * edge_ij->speed_factor);
                 } else {
                     vertexTo->walking_distance = vertexFrom->walking_distance;
-                    vertexTo->walking_time = vertexFrom->walking_time;
+                    vertexTo->walking_duration = vertexFrom->walking_duration;
                 }
                 if (!vertexTo->status == IN_QUEUE) {
                     if (vertexTo->status == WAS_IN_QUEUE) {
@@ -274,7 +278,7 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
                     }
                 }
             }
-            edge_ij = edge_ij->adjNext;
+            edge_ij = edge_ij->adj_next;
         } /* end of scanning vertexFrom */
     } /* end of the main loop */
 
