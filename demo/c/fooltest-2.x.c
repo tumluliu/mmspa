@@ -74,7 +74,7 @@ int main(void) {
     /*printf("Test times: 50\n");*/
     gettimeofday(&start_time, NULL);
     double finalCost = 0.0;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 10; i++) {
 #ifdef DEBUG
         printf("[DEBUG] ============== %d ==============\n", i+1);
 #endif
@@ -84,6 +84,7 @@ int main(void) {
         printf("[DEBUG] Duration of the final path: %f\n", finalCost);
 #endif
         MSPclearPaths(finalPath);
+        MSPclearGraphs();
     }
     MSPclearRoutingPlan();
     gettimeofday(&finish_time, NULL);
