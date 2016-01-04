@@ -49,9 +49,9 @@ void MultimodalTwoQ(int64_t source) {
     Vertex begin = VNULL, end = VNULL, entry = VNULL;
     if (pathRecordTable != NULL)
         DisposeResultPathTable();
-    pathRecordTable = (PathRecorder**) calloc(plan->mode_count,
+    pathRecordTable = (PathRecorder **) calloc(plan->mode_count,
             sizeof(PathRecorder*));
-    pathRecordCountArray = (int*) calloc(plan->mode_count, sizeof(int));
+    pathRecordCountArray = (int *) calloc(plan->mode_count, sizeof(int));
     inputModeCount = plan->mode_count;
     for (i = 0; i < plan->mode_count; i++) {
         pathRecordCountArray[i] = activeGraphs[i]->vertex_count;
