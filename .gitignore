@@ -20,8 +20,9 @@ autom4te.cache/
 .deps/
 .ropeproject/
 
-fooltest
-fooltest-*
+fooltest1
+fooltest2_publictransit
+fooltest2_driving_and_publictransit
 config.cache
 config.h
 config.intl

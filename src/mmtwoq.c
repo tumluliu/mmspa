@@ -16,6 +16,7 @@
  */
 
 #include <stdio.h>
+#include <assert.h>
 #include "../include/mmtwoq.h"
 
 /* status of vertex regarding to queue */
@@ -210,6 +211,9 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
         // EXTRACT_FIRST(vertexFrom)
         vertexFrom = *begin;
         vertexFrom->status = WAS_IN_QUEUE;
+#ifdef DEBUG
+        /*printf("[DEBUG][mmtwoq.c::twoQSearch] processing vertex %lld with %d outgoing edges... \n", vertexFrom->id, vertexFrom->outdegree);*/
+#endif
         if ((*begin) == (*entry))
             *entry = VNULL;
         *begin = (*begin)->next;
@@ -222,6 +226,9 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
         edge_ij = vertexFrom->outgoing;
         while (edge_ij != ENULL) { 
             /* scanning edges outgoing from vertexFrom*/
+#ifdef DEBUG
+            /*printf("[DEBUG][mmtwoq.c::twoQSearch] relaxing edge (%lld, %lld)... \n", edge_ij->from_id, edge_ij->to_id);*/
+#endif
             vertexTo = BinarySearchVertexById(g->vertices, 0, g->vertex_count - 1, 
                     edge_ij->to_id);
             if (strcmp(costFactor, "speed") == 0)
@@ -280,6 +287,9 @@ static void twoQSearch(ModeGraph g, Vertex *begin, Vertex *end, Vertex *entry,
             }
             edge_ij = edge_ij->adj_next;
         } /* end of scanning vertexFrom */
+#ifdef DEBUG
+        /*printf("[DEBUG][mmtwoq.c::twoQSearch] finish relaxing of vertex %lld\n", vertexFrom->id);*/
+#endif
     } /* end of the main loop */
 
     vertexCount = g->vertex_count;

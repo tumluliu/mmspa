@@ -40,8 +40,8 @@ static ModeGraph shallowCopyModeGraphFromCache(int modeId);
 static ModeGraph cloneModeGraph(ModeGraph g);
 static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount);
 static void readSwitchPoints(PGresult *res, SwitchPoint **switchpointArrayAddr);
-static void embedSwitchPoints(Vertex *vertexArray, int vertexCount, 
-        SwitchPoint *switchpointArray, int switchpointCount);
+static void embedSwitchPoints(Vertex *vertices, int vertexCount, 
+        SwitchPoint *switchpoints, int switchpointCount);
 static int validateGraph(ModeGraph g);
 static int getVertexCount(const char *vertexCountSQL);
 static void retrieveGraphData(const char *graphSQL, Vertex **vertices, 
@@ -49,17 +49,18 @@ static void retrieveGraphData(const char *graphSQL, Vertex **vertices,
 static char *constructPublicModeClause(RoutingPlan *p);
 static void constructGraphSQL(RoutingPlan *p, int modeId, char *vertexCountSQL, 
         char *graphSQL);
-static void appendPublicSwitchClause(RoutingPlan *p, char *switchSQL);
+static void constructPublicSwitchSQL(RoutingPlan *p, char *switchSQL);
 static void retrieveSwitchPoints(const char *switchSQL, int *spCount, 
         SwitchPoint **publicSPs);
-static void constructPublicModeGraph(RoutingPlan *p, char *switchSQL, 
-        Vertex *vertices, int vertexCount);
+static void constructPublicModeGraph(RoutingPlan *p, Vertex *vertices, 
+        int vertexCount);
 static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p);
 static void disposePublicModeGraph();
 static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i);
 static void disposeActiveGraphs();
 static void disposeGraphCache();
 static void disposeSwitchPoints();
+static void quickSortVertices(Vertex *v, int n);
 
 /* External function declarations */
 extern void DisposeRoutingPlan();
@@ -88,7 +89,7 @@ int MSPassembleGraphs() {
         char switchpointSQL[1024] = "";
         ModeGraph g = GNULL;
 #ifdef DEBUG
-        printf("[DEBUG][graphassembler.c::MSPassembleGraphs]create active graphs from cache\n");
+        printf("[DEBUG][graphassembler.c::MSPassembleGraphs]create active graphs from cache for mode %d\n", modeId);
 #endif
         if (modeId != PUBLIC_TRANSPORTATION)
             g = shallowCopyModeGraphFromCache(modeId);
@@ -149,6 +150,7 @@ int Parse() {
         char graphSQL[1024] = "";
         Vertex *vertices = NULL;
         ModeGraph tmpGraph = (ModeGraph) malloc(sizeof(struct ModeGraph));
+        assert(tmpGraph);
         tmpGraph->id = modeId;
         constructGraphSQL(plan, modeId, vertexCountSQL, graphSQL);
         vertexCount = getVertexCount(vertexCountSQL);
@@ -160,11 +162,11 @@ int Parse() {
         printf("[DEBUG][graphassembler.c::Parse] construct mode graph for public transit \n");
 #endif
         if (modeId == PUBLIC_TRANSPORTATION) 
-            constructPublicModeGraph(plan, switchpointSQL, vertices, vertexCount);
+            constructPublicModeGraph(plan, vertices, vertexCount);
         tmpGraph->vertices = vertices;
 #ifdef DEBUG
         printf("[DEBUG][graphassembler.c::Parse] assign vertices to tmpGraph \n");
-        printf("[DEBUG] First vertex in tmpGraph: %lld\n", tmpGraph->vertices[0]->id);
+        printf("[DEBUG][graphassembler.c::Parse] First vertex in tmpGraph: %lld\n", tmpGraph->vertices[0]->id);
 #endif
         tmpGraph->vertex_count = vertexCount;
 #ifdef DEBUG
@@ -224,6 +226,7 @@ static void loadAllGraphs() {
         char graphSQL[1024] = "";
         Vertex *vertices = NULL;
         ModeGraph g = (ModeGraph) malloc(sizeof(struct ModeGraph));
+        assert(g);
         g->id = i;
         constructGraphSQL(NULL, i, vertexCountSQL, graphSQL);
         vertexCount = getVertexCount(vertexCountSQL);
@@ -253,31 +256,36 @@ static ModeGraph shallowCopyModeGraphFromCache(int modeId) {
 
 static ModeGraph cloneModeGraph(ModeGraph g) {
     ModeGraph newG = (ModeGraph) malloc(sizeof(struct ModeGraph));
+    assert(newG);
     newG->id = g->id;
     newG->vertex_count = g->vertex_count;
     Vertex *vertices = (Vertex*) calloc(newG->vertex_count, sizeof(Vertex));
+    assert(vertices);
     Vertex tmpV = VNULL;
     for (int i = 0; i < g->vertex_count; i++) {
         tmpV = (Vertex) malloc(sizeof(struct Vertex));
+        assert(tmpV);
         tmpV->id = g->vertices[i]->id;
         tmpV->outdegree = g->vertices[i]->outdegree;
         if (tmpV->outdegree == 0)
             tmpV->outgoing = ENULL;
         else {
-            Edge lastE;
-            Edge ogE = g->vertices[i]->outgoing;
-            for (int j = 0; j < tmpV->outdegree; j++) {
-                Edge tmpE = (Edge) malloc(sizeof(struct Edge));
-                tmpE->from_id = ogE->from_id;
-                tmpE->to_id = ogE->to_id;
-                tmpE->length = ogE->length;
-                tmpE->speed_factor = ogE->speed_factor;
-                tmpE->length_factor = ogE->length_factor;
-                tmpE->mode_id = ogE->mode_id;
-                if (j == 0) { tmpV->outgoing = tmpE; }
-                else { lastE->adj_next = tmpE; }
-                lastE = tmpE;
-                ogE = ogE->adj_next;
+            Edge head = g->vertices[i]->outgoing;
+            Edge last = ENULL, p = head;
+            for (int j = 0; j < g->vertices[i]->outdegree; j++) {
+                Edge e = (Edge) malloc(sizeof(struct Edge));
+                assert(e);
+                e->from_id = p->from_id;
+                e->to_id = p->to_id;
+                e->length = p->length;
+                e->speed_factor = p->speed_factor;
+                e->length_factor = p->length_factor;
+                e->mode_id = p->mode_id;
+                e->adj_next = ENULL;
+                if (p == head) { tmpV->outgoing = e; }
+                else { last->adj_next = e; }
+                last = e;
+                p = p->adj_next;
             }
         }
         vertices[i] = tmpV;
@@ -288,10 +296,13 @@ static ModeGraph cloneModeGraph(ModeGraph g) {
 
 static int initGraphs(int graphCount) {
     activeGraphs = (ModeGraph *) calloc(graphCount, sizeof(ModeGraph));
+    assert(activeGraphs);
     if (graphCount > 1) {
         switchpointsArr = (SwitchPoint **) calloc(graphCount - 1, 
                 sizeof(SwitchPoint *));
+        assert(switchpointsArr);
         switchpointCounts = (int *) calloc(graphCount - 1, sizeof(int));
+        assert(switchpointCounts);
     }
     return EXIT_SUCCESS;
 }
@@ -304,6 +315,7 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
     printf("[DEBUG][graphassembler.c::readGraph] record count is %d\n", recordCount);
 #endif
     *vertexArrayAddr = (Vertex *) calloc(vertexCount, sizeof(Vertex));
+    assert(*vertexArrayAddr);
     Vertex tmpVertex = VNULL;
     for (i = 0; i < recordCount; i++) {
         /* fields in the query results:
@@ -315,6 +327,7 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
         if (outgoingCursor == 0) {
             // a new group of edge records with the same from_vertex starts...	
             tmpVertex = (Vertex) malloc(sizeof(struct Vertex));
+            assert(tmpVertex);
             /* vertex id */		
             tmpVertex->id = atoll(PQgetvalue(res, i, 0));
             /* out degree */		
@@ -328,6 +341,7 @@ static void readGraph(PGresult *res, Vertex **vertexArrayAddr, int vertexCount) 
         if (outgoingCursor == atoi(PQgetvalue(res, i, 4)))
             outgoingCursor = 0;
         Edge tmpEdge = (Edge) malloc(sizeof(struct Edge));
+        assert(tmpEdge);
         /* from vertex id */
         tmpEdge->from_id = atoll(PQgetvalue(res, i, 0));
         /* to vertex id */
@@ -366,6 +380,7 @@ static void readSwitchPoints(PGresult *res, SwitchPoint **switchpointArrayAddr) 
     switchpointCount = PQntuples(res);
     *switchpointArrayAddr = (SwitchPoint *) calloc(switchpointCount, 
             sizeof(SwitchPoint));
+    assert(*switchpointArrayAddr);
     for (i = 0; i < switchpointCount; i++) {
         /* fields in query results:
          * from_vertex_id, to_vertex_id, cost
@@ -373,6 +388,7 @@ static void readSwitchPoints(PGresult *res, SwitchPoint **switchpointArrayAddr) 
          */
         SwitchPoint tmpSwitchPoint;
         tmpSwitchPoint = (SwitchPoint) malloc(sizeof(struct SwitchPoint));
+        assert(tmpSwitchPoint);
         /* from vertex id */
         tmpSwitchPoint->from_vertex_id = atoll(PQgetvalue(res, i, 0));
         /* to vertex id */
@@ -386,46 +402,79 @@ static void readSwitchPoints(PGresult *res, SwitchPoint **switchpointArrayAddr) 
     }
 }
 
-static void embedSwitchPoints(Vertex *vertexArray, int vertexCount, 
-        SwitchPoint *switchpointArray, int switchpointCount) {
+static void embedSwitchPoints(Vertex *vertices, int vertexCount, 
+        SwitchPoint *switchpoints, int switchpointCount) {
     // Treat all the switch point pairs as new edges and add them into the graph
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::embedSwitchPoints] Start embedding %d switch points into multimodal graph with %d vertices... \n", switchpointCount, vertexCount);
 #endif
-    int i = 0;
-    for (i = 0; i < switchpointCount; i++) {
+#ifdef DEEP_DEBUG
+    /*printf("[DEEP_DEBUG][graphassembler.c::embedSwitchPoints] Input vertices: \n");*/
+    /*for (int k = 0; k < vertexCount; k++) */
+        /*printf("[DEEP_DEBUG][graphassembler.c::embedSwitchPoints] vertex id: %lld\n", vertices[k]->id);*/
+#endif
+    for (int i = 0; i < switchpointCount; i++) {
 #ifdef DEBUG
         printf("[DEBUG][graphassembler.c::embedSwitchPoints] Processing switch point %d\n", i + 1);
-        printf("[DEBUG][graphassembler.c::embedSwitchPoints] from vertex id: %lld\n", switchpointArray[i]->from_vertex_id);
-        printf("[DEBUG][graphassembler.c::embedSwitchPoints] to vertex id: %lld\n", switchpointArray[i]->to_vertex_id);
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] from vertex id: %lld\n", switchpoints[i]->from_vertex_id);
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] to vertex id: %lld\n", switchpoints[i]->to_vertex_id);
 #endif
         Edge tmpEdge;
         tmpEdge = (Edge) malloc(sizeof(struct Edge));
+        assert(tmpEdge);
         /* from vertex */
-        tmpEdge->from_id = switchpointArray[i]->from_vertex_id;
+        tmpEdge->from_id = switchpoints[i]->from_vertex_id;
         /* to vertex */
-        tmpEdge->to_id = switchpointArray[i]->to_vertex_id;
-        /* attach end to the adjacency list of start */
-        // TODO: should check if the vertex searching result is null
-        Vertex vertexFrom = BinarySearchVertexById(vertexArray, 0, 
-                vertexCount - 1, switchpointArray[i]->from_vertex_id);
-        Edge outgoingEdge = vertexFrom->outgoing;
-        if (vertexFrom->outgoing == ENULL)
-            vertexFrom->outgoing = tmpEdge;
-        else {
-            while (outgoingEdge->adj_next != ENULL)
-                outgoingEdge = outgoingEdge->adj_next;
-            outgoingEdge->adj_next = tmpEdge;
-        }
-        vertexFrom->outdegree++;
+        tmpEdge->to_id = switchpoints[i]->to_vertex_id;
         tmpEdge->mode_id = FOOT;
         tmpEdge->adj_next = ENULL;
         /* edge length */
-        tmpEdge->length = switchpointArray[i]->length;
+        tmpEdge->length = switchpoints[i]->length;
         /* speed factor */
-        tmpEdge->speed_factor = switchpointArray[i]->speed_factor;
+        tmpEdge->speed_factor = switchpoints[i]->speed_factor;
         /* length factor, === 1.0 */
         tmpEdge->length_factor = 1.0;
+        /* attach end to the adjacency list of start */
+        Vertex vertexFrom = BinarySearchVertexById(vertices, 0, 
+                vertexCount - 1, switchpoints[i]->from_vertex_id);
+        assert(vertexFrom);
+#ifdef DEBUG
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] found vertex: %lld\n", vertexFrom->id);
+#endif
+#ifdef DEBUG
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] get outgoing of vertex %lld\n", vertexFrom->id);
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] outdegree of vertex %lld is %d\n", vertexFrom->id, vertexFrom->outdegree);
+#endif
+        Edge e = vertexFrom->outgoing;
+        if (e == ENULL) {
+#ifdef DEBUG
+            printf("[DEBUG][graphassembler.c::embedSwitchPoints] outgoing of vertex %lld is NULL\n", vertexFrom->id);
+#endif
+            vertexFrom->outgoing = tmpEdge;
+        } else {
+#ifdef DEBUG
+            printf("[DEBUG][graphassembler.c::embedSwitchPoints] outgoing of vertex %lld is not NULL\n", vertexFrom->id);
+            printf("[DEBUG][graphassembler.c::embedSwitchPoints] head of edge linked list, a.k.a outgoing edge is (%lld, %lld) \n", e->from_id, e->to_id);
+#endif
+            while (e->adj_next != ENULL) {
+#ifdef DEBUG
+                printf("[DEBUG][graphassembler.c::embedSwitchPoints] get adj next of edge (%lld, %lld) \n", e->from_id, e->to_id);
+#endif
+                e = e->adj_next;
+            }
+            /*assert(e);*/
+#ifdef DEBUG
+            printf("[DEBUG][graphassembler.c::embedSwitchPoints] tail edge: (%lld, %lld)\n", e->from_id, e->to_id);
+#endif
+            e->adj_next = tmpEdge;
+#ifdef DEBUG
+            printf("[DEBUG][graphassembler.c::embedSwitchPoints] new edge: (%lld, %lld) has been appended to the linked list\n", tmpEdge->from_id, tmpEdge->to_id);
+#endif
+        }
+        vertexFrom->outdegree++;
+#ifdef DEBUG
+        printf("[DEBUG][graphassembler.c::embedSwitchPoints] edge (%lld, %lld) born from switchpoint has been added\n", tmpEdge->from_id, tmpEdge->to_id);
+#endif
     }
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::embedSwitchPoints] Finish combining.\n");
@@ -433,26 +482,49 @@ static void embedSwitchPoints(Vertex *vertexArray, int vertexCount,
 }
 
 // Linear search when the vertex array is not sorted 
-Vertex SearchVertexById(Vertex* vertexArray, int len, int64_t id) {
+Vertex SearchVertexById(Vertex* vertices, int len, int64_t id) {
     int i = 0;
     for (i = 0; i < len; i++) {
-        if (vertexArray[i]->id == id)
-            return vertexArray[i];
+        if (vertices[i]->id == id)
+            return vertices[i];
     }
     return VNULL;
 }
 
+static void quickSortVertices(Vertex *v, int n) {
+    int left, right;
+    int64_t p;
+    Vertex t;
+    if (n < 2)
+        return;
+    p = v[n / 2]->id;
+    for (left = 0, right = n - 1;; left++, right--) {
+        while (v[left]->id < p)
+            left++;
+        while (p < v[right]->id)
+            right--;
+        if (left >= right)
+            break;
+        t = v[left];
+        v[left] = v[right];
+        v[right] = t;
+    }
+    quickSortVertices(v, left);
+    quickSortVertices(&v[left], n - left);
+}
+
 // Binary search when the vertex array is sorted
-Vertex BinarySearchVertexById(Vertex* vertexArray, int low, int high, int64_t id) {
+Vertex BinarySearchVertexById(Vertex *vertices, int low, int high, int64_t id) {
+    assert(vertices);
     if (high < low)
         return VNULL; // not found
     int mid = (low + high) / 2;
-    if (vertexArray[mid]->id > id)
-        return BinarySearchVertexById(vertexArray, low, mid - 1, id);
-    else if (vertexArray[mid]->id < id)
-        return BinarySearchVertexById(vertexArray, mid + 1, high, id);
+    if (vertices[mid]->id > id)
+        return BinarySearchVertexById(vertices, low, mid - 1, id);
+    else if (vertices[mid]->id < id)
+        return BinarySearchVertexById(vertices, mid + 1, high, id);
     else
-        return vertexArray[mid];
+        return vertices[mid];
 }
 
 // Check if the constructed graph has dirty data
@@ -460,6 +532,10 @@ static int validateGraph(ModeGraph g) {
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::validateGraph] Start validating graph g with mode_id %d\n", g->id);
 #endif
+    if (g == GNULL) {
+        printf("FATAL: NULL graph input in validateGraph");
+        return EXIT_FAILURE;
+    }
     for (int i = 0; i < g->vertex_count; i++) {
 #ifdef DEBUG
         /*printf("[DEBUG][graphassembler.c::validateGraph] Checking vertex %d\n", i);*/
@@ -602,7 +678,7 @@ static void constructGraphSQL(RoutingPlan *p, int modeId, char *vertexCountSQL,
     }
 }
 
-static void appendPublicSwitchClause(RoutingPlan *p, char *switchSQL) {
+static void constructPublicSwitchSQL(RoutingPlan *p, char *switchSQL) {
     int j = 0, k = 0;
     char psClause[1024];
     sprintf(psClause, " ((from_mode_id = %d AND to_mode_id = %d) OR \
@@ -633,7 +709,7 @@ static void appendPublicSwitchClause(RoutingPlan *p, char *switchSQL) {
     sprintf(switchSQL, "SELECT from_vertex_id, to_vertex_id, cost FROM \
             switch_points WHERE %s", psClause);
 #ifdef DEBUG
-    printf("[DEBUG][graphassembler.c::appendPublicSwitchClause] SQL statement for filtering switch points: \n");
+    printf("[DEBUG][graphassembler.c::constructPublicSwitchSQL] SQL statement for filtering switch points: \n");
     printf("%s\n", switchSQL);
 #endif
 }
@@ -654,11 +730,11 @@ static void retrieveSwitchPoints(const char *switchSQL, int *spCount,
     *spCount = PQntuples(switchpointResults);
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::retrieveSwitchPoints] Found switch points: %d\n", *spCount);
-    printf("[DEBUG][graphassembler.c::retrieveSwitchPoints] Reading and parsing switch points...");
+    printf("[DEBUG][graphassembler.c::retrieveSwitchPoints] Reading and parsing switch points...\n");
 #endif
     readSwitchPoints(switchpointResults, publicSPs);
 #ifdef DEBUG
-    printf("[graphassembler.c::retrieveSwitchPoints] done.\n");
+    printf("[DEBUG][graphassembler.c::retrieveSwitchPoints] done.\n");
 #endif
     PQclear(switchpointResults);
 }
@@ -667,23 +743,48 @@ static ModeGraph pGraph = GNULL;
 
 static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p) {
     /*a new graph is necessary for public transit network*/
-    pGraph = (ModeGraph)malloc(sizeof(struct ModeGraph));
+#ifdef DEBUG
+    printf("[graphassembler.c::buildPublicModeGraphFromCache] Start building public mode graph by deep copying from graph cache.\n");
+#endif
+    pGraph = (ModeGraph) malloc(sizeof(struct ModeGraph));
+    assert(pGraph);
     int vCount = 0, i = 0;
     ModeGraph fg = deepCopyModeGraphFromCache(FOOT);
+    vCount += fg->vertex_count;
     ModeGraph pg[p->public_transit_mode_count];
     for (i = 0; i < p->public_transit_mode_count; i++) {
         pg[i] = deepCopyModeGraphFromCache(p->public_transit_modes[i]);
         vCount += pg[i]->vertex_count;
     }
-    Vertex *vertices = (Vertex *)calloc(vCount, sizeof(Vertex));
+    Vertex *vertices = (Vertex *) calloc(vCount, sizeof(Vertex));
+    assert(vertices);
     int vCur = 0, j = 0;
-    for (i = 0; i < fg->vertex_count; i++)
-        vertices[vCur++] = fg->vertices[i];
+    for (j = 0; j < fg->vertex_count; j++)
+        vertices[vCur++] = fg->vertices[j];
     for (i = 0; i < p->public_transit_mode_count; i++)
         for (j = 0; j < pg[i]->vertex_count; j++)
             vertices[vCur++] = pg[i]->vertices[j];
+#ifdef DEBUG
+    printf("[DEBUG][graphassembler.c::buildPublicModeGraphFromCache] Do QuickSort on vertices array...\n");
+#endif
+    quickSortVertices(vertices, vCount);
+#ifdef DEBUG
+    printf("[DEBUG][graphassembler.c::buildPublicModeGraphFromCache] QuickSort done!\n");
+#endif
+#ifdef DEEP_DEBUG
+    printf("[DEEP_DEBUG][graphassembler.c::buildPublicModeGraphFromCache] vertices count: %d\n", vCount);
+    printf("[DEEP_DEBUG][graphassembler.c::buildPublicModeGraphFromCache] final vertex cursor: %d\n", vCur);
+    for (j = 0; j < vCount; j++)
+        printf("[DEEP_DEBUG][graphassembler.c::buildPublicModeGraphFromCache] vertex id: %lld\n", vertices[j]->id);
+#endif
+    constructPublicModeGraph(p, vertices, vCount);
     pGraph->id = PUBLIC_TRANSPORTATION;
+    pGraph->vertices = vertices;
     pGraph->vertex_count = vCount;
+#ifdef DEBUG
+    printf("[graphassembler.c::buildPublicModeGraphFromCache] Finish building public mode graph where there are %d vertices.\n", pGraph->vertex_count);
+    printf("[graphassembler.c::buildPublicModeGraphFromCache] Its first vertex id: %lld.\n", pGraph->vertices[0]->id);
+#endif
     return pGraph;
 }
 
@@ -691,38 +792,37 @@ static void disposePublicModeGraph() {
     if (pGraph == GNULL)
         return;
     for (int i = 0; i < pGraph->vertex_count; i++) {
-        Edge current = pGraph->vertices[i]->outgoing;
-        while (current != ENULL) {
-            Edge temp = current->adj_next;
-            free(current);
-            current = ENULL;
-            current = temp;
+        Edge p, q;
+        for (p = pGraph->vertices[i]->outgoing; p != ENULL; p = q) {
+            q = p->adj_next;
+            free(p);
+            p = ENULL;
         }
-        pGraph->vertices[i]->outgoing = ENULL;
         free(pGraph->vertices[i]);
         pGraph->vertices[i] = VNULL;
     }
+    free(pGraph->vertices);
+    pGraph->vertices = NULL;
     free(pGraph);
     pGraph = GNULL;
 } 
 
 // Combine all the selected public transit modes and foot networks
 // if current mode_id is PUBLIC_TRANSPORTATION
-static void constructPublicModeGraph(RoutingPlan *p, char *switchSQL, 
-        Vertex *vertices, int vertexCount) {
+static void constructPublicModeGraph(RoutingPlan *p, Vertex *vertices, 
+        int vertexCount) {
     // read switch points between all the PT mode pairs 
-    SwitchPoint *publicSwitchPoints = NULL;
-    int publicSwitchPointCount = 0;
-    appendPublicSwitchClause(p, switchSQL);
-    retrieveSwitchPoints(switchSQL, &publicSwitchPointCount, &publicSwitchPoints);
-    // combine the graphs by adding switch lines in the 
-    // (vertices, edges) set and get the mode 
-    // PUBLIC_TRANSPORTATION graph
+    SwitchPoint *publicSPs = NULL;
+    int publicSPcount = 0;
+    char switchSQL[1024] = "";
+    constructPublicSwitchSQL(p, switchSQL);
+    retrieveSwitchPoints(switchSQL, &publicSPcount, &publicSPs);
+    // combine the graphs by adding switch lines in the (vertices, edges) set 
+    // and get the mode PUBLIC_TRANSPORTATION graph
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::constructPublicModeGraph] Combining multimodal graphs for public transit...\n");
 #endif
-    embedSwitchPoints(vertices, vertexCount, publicSwitchPoints, 
-            publicSwitchPointCount);
+    embedSwitchPoints(vertices, vertexCount, publicSPs, publicSPcount);
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::constructPublicModeGraph] done.\n");
 #endif
