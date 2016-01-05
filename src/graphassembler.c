@@ -785,6 +785,12 @@ static ModeGraph buildPublicModeGraphFromCache(RoutingPlan *p) {
     printf("[graphassembler.c::buildPublicModeGraphFromCache] Finish building public mode graph where there are %d vertices.\n", pGraph->vertex_count);
     printf("[graphassembler.c::buildPublicModeGraphFromCache] Its first vertex id: %lld.\n", pGraph->vertices[0]->id);
 #endif
+    free(fg->vertices);
+    free(fg);
+    for (i = 0; i < p->public_transit_mode_count; i++) {
+        free(pg[i]->vertices);
+        free(pg[i]);
+    }
     return pGraph;
 }
 
@@ -826,6 +832,9 @@ static void constructPublicModeGraph(RoutingPlan *p, Vertex *vertices,
 #ifdef DEBUG
     printf("[DEBUG][graphassembler.c::constructPublicModeGraph] done.\n");
 #endif
+    for (int i = 0; i < publicSPcount; i++)
+        free(publicSPs[i]);
+    free(publicSPs);
 }
 
 static void constructSwitchPointSQL(RoutingPlan *p, char *switchSQL, int i) {
