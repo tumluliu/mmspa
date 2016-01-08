@@ -1,4 +1,4 @@
-AC_INIT([mmspa4pg], [2.0.0], [nudtlliu@gmail.com])
+AC_INIT([mmspa4pg], [2.0.1], [nudtlliu@gmail.com])
 #CFLAGS="-arch i386"
 CFLAGS="$CFLAGS -I/usr/local/include"
 # option for enabling debug mode
