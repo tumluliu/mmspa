@@ -32,7 +32,7 @@ Path **GetFinalPath(int64_t source, int64_t target) {
 }
 
 Path **MSPgetFinalPath(int64_t source, int64_t target) {
-	extern SwitchPoint **switchpointsArr;
+	extern SwitchPoint **pSwitchPoints;
 	extern int *switchpointCounts;
 	int i = 0, pathVertexCount = 1, j = 0;
 	PathRecorder pr = NULL;
@@ -69,7 +69,7 @@ Path **MSPgetFinalPath(int64_t source, int64_t target) {
 	for (i = inputModeCount - 2; i >= 0; i--) {
 		pathVertexCount = 1;
 		int64_t switchFromId = searchSwitchPointByToId(pr->vertex_id, 
-		        switchpointsArr[i], switchpointCounts[i])->from_vertex_id;
+		        pSwitchPoints[i], switchpointCounts[i])->from_vertex_id;
 		pr = searchRecordByVertexId(switchFromId, pathRecordTable[i],
 				pathRecordCountArray[i]);
 		int64_t switchpointId = pr->vertex_id;

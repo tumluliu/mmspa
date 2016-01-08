@@ -40,7 +40,7 @@ void MultimodalTwoQ(int64_t source) {
 
 void MSPtwoq(int64_t source) {
     extern ModeGraph *activeGraphs;
-    extern SwitchPoint **switchpointsArr;
+    extern SwitchPoint **pSwitchPoints;
     extern int *switchpointCounts;
     extern PathRecorder **pathRecordTable;
     extern int *pathRecordCountArray;
@@ -70,7 +70,7 @@ void MSPtwoq(int64_t source) {
                     &end, &entry, &pathRecordArray, plan->cost_factor);
         else
             multimodalTwoQInit(activeGraphs[i], activeGraphs[i-1], 
-                    switchpointsArr[i-1], switchpointCounts[i-1], 
+                    pSwitchPoints[i-1], switchpointCounts[i-1], 
                     plan->switch_constraints[i-1], source, &begin, &end, &entry, 
                     &pathRecordArray, plan->cost_factor);
 #ifdef DEBUG
