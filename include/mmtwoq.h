@@ -23,7 +23,4 @@
 
 void MSPtwoq(int64_t source);
 
-//v1.0 API
-void MultimodalTwoQ(int64_t source);
-
 #endif   /* ----- #ifndef MMTWOQ_INC  ----- */

@@ -48,30 +48,4 @@ extern void MSPclearGraphs();
 extern void MSPclearRoutingPlan();
 extern void MSPfinalize();
 
-/*
- * v1.x API
- */
-
-/* Functions of creating multimodal routing plan */
-void CreateRoutingPlan(int modeCount, int publicModeCount);
-void SetModeListItem(int index, int modeId);
-void SetPublicTransitModeSetItem(int index, int modeId);
-void SetSwitchConditionListItem(int index, const char *spCondition);
-void SetSwitchingConstraint(int index, VertexValidationChecker callback);
-void SetTargetConstraint(VertexValidationChecker callback);
-void SetCostFactor(const char *costFactor);
-int Parse(); 
-int ConnectDB(const char *pgConnStr);
-void DisconnectDB();
-/* Functions of multimodal shortest path algorithms */
-void MultimodalTwoQ(int64_t source);
-/* Functions of fetching and releasing the path planning results */
-Path **GetFinalPath(int64_t source, int64_t target);
-double GetFinalCost(int64_t target, const char *costField);
-void DisposePaths(Path **paths);
-/* Function of releasing the memory resource used by active mode graphs for
- * each concrete routing plan */
-void Dispose();
-void DisposeRoutingPlan();
-
 #endif /*MMSPA4PG_H_*/

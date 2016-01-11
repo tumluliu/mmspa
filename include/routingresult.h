@@ -33,13 +33,11 @@ struct Path {
 	int     vertex_list_length;
 };	
 
+/* v2.x API */
 Path **MSPgetFinalPath(int64_t source, int64_t target);
 double MSPgetFinalCost(int64_t target, const char *costField);
 void MSPclearPaths(Path **paths);
-
-Path **GetFinalPath(int64_t source, int64_t target);
-double GetFinalCost(int64_t target, const char *costField);
-void DisposePaths(Path **paths);
+/* Internal public function */
 void DisposeResultPathTable(); 
 
 #endif   /* ----- #ifndef PATHINFO_INC  ----- */

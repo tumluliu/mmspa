@@ -26,8 +26,7 @@ typedef struct RoutingPlan RoutingPlan;
  * defined by the client */
 typedef int (*VertexValidationChecker)(Vertex vertexToCheck); 
 
-struct RoutingPlan
-{
+struct RoutingPlan {
 	int                     *modes;
 	int                     mode_count;
 	int                     *public_transit_modes;
@@ -47,15 +46,5 @@ void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
 void MSPsetTargetConstraint(VertexValidationChecker callback);
 void MSPsetCostFactor(const char *costFactor);
 void MSPclearRoutingPlan();
-
-/* v1.x API */
-void CreateRoutingPlan(int modeCount, int publicModeCount);
-void SetModeListItem(int index, int modeId);
-void SetPublicTransitModeSetItem(int index, int modeId);
-void SetSwitchConditionListItem(int index, const char *spCondition);
-void SetSwitchingConstraint(int index, VertexValidationChecker callback);
-void SetTargetConstraint(VertexValidationChecker callback);
-void SetCostFactor(const char *costFactor);
-void DisposeRoutingPlan();
 
 #endif   /* ----- #ifndef ROUTINGPLAN_INC  ----- */

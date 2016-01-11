@@ -22,14 +22,8 @@ PathRecorder **pathRecordTable = NULL;
 int *pathRecordCountArray = NULL;
 int inputModeCount = 0;
 
-static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *spList, 
-        int spListLength);
-static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *recordList, 
-        int recordListLength);
-
-Path **GetFinalPath(int64_t source, int64_t target) {
-    return MSPgetFinalPath(source, target);
-}
+static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *sp, int spc);
+static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *pr, int prc);
 
 Path **MSPgetFinalPath(int64_t source, int64_t target) {
 	extern SwitchPoint **pSwitchPoints;
@@ -101,27 +95,6 @@ Path **MSPgetFinalPath(int64_t source, int64_t target) {
 	return paths;
 }
 
-void DisposeResultPathTable() {
-	int i = 0;
-	for (i = 0; i < inputModeCount; i++) {
-		int j = 0;
-		for (j = 0; j < pathRecordCountArray[i]; j++) {
-			free(pathRecordTable[i][j]);
-			pathRecordTable[i][j] = NULL;
-		}
-		free(pathRecordTable[i]);
-		pathRecordTable[i] = NULL;
-	}
-	free(pathRecordTable);
-	pathRecordTable = NULL;
-	free(pathRecordCountArray);
-	pathRecordCountArray = NULL;
-}
-
-double GetFinalCost(int64_t target, const char *costField) {
-    return MSPgetFinalCost(target, costField);
-}
-
 double MSPgetFinalCost(int64_t target, const char *costField) {
 	extern ModeGraph *activeGraphs;
 	extern int graphCount;
@@ -144,10 +117,6 @@ double MSPgetFinalCost(int64_t target, const char *costField) {
 	}
 }
 
-void DisposePaths(Path **paths) {
-    MSPclearPaths(paths);
-}
-
 void MSPclearPaths(Path **paths) {
 	int i = 0;
 	for (i = 0; i < inputModeCount; i++) {
@@ -160,26 +129,43 @@ void MSPclearPaths(Path **paths) {
 	paths = NULL;
 }
 
-static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *recordList, 
-        int recordListLength) {
+void DisposeResultPathTable() {
 	int i = 0;
-	for (i = 0; i < recordListLength; i++) {
-		if (recordList[i]->vertex_id == id)
-			return recordList[i];
+	for (i = 0; i < inputModeCount; i++) {
+		int j = 0;
+		for (j = 0; j < pathRecordCountArray[i]; j++) {
+			free(pathRecordTable[i][j]);
+			pathRecordTable[i][j] = NULL;
+		}
+		free(pathRecordTable[i]);
+		pathRecordTable[i] = NULL;
+	}
+	free(pathRecordTable);
+	pathRecordTable = NULL;
+	free(pathRecordCountArray);
+	pathRecordCountArray = NULL;
+}
+
+static PathRecorder searchRecordByVertexId(int64_t id, PathRecorder *pr, 
+        int prc) {
+	int i = 0;
+	for (i = 0; i < prc; i++) {
+		if (pr[i]->vertex_id == id)
+			return pr[i];
 	}
 	return NULL;
 }
 
-static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *spList, 
-        int spListLength) {
+static SwitchPoint searchSwitchPointByToId(int64_t id, SwitchPoint *sp, 
+        int spc) {
 	// FIXME: There will be a potential problem here: 
 	// how to deal with the m:1 relationship with in a switch point?
 	// That means there will be several searching results in this function.
 	// Which one should be chosen?
 	int i = 0;
-	for (i = 0; i < spListLength; i++) {
-		if (spList[i]->to_vertex_id == id)
-			return spList[i];
+	for (i = 0; i < spc; i++) {
+		if (sp[i]->to_vertex_id == id)
+			return sp[i];
 	}
 	return NULL;
 }

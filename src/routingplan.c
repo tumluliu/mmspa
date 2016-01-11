@@ -84,36 +84,3 @@ void MSPclearRoutingPlan() {
 	free(plan);
 	plan = NULL;
 }
-
-/* v1.x API, for compatibility */
-void CreateRoutingPlan(int modeCount, int publicModeCount) {
-    MSPcreateRoutingPlan(modeCount, publicModeCount);
-}
-
-void SetModeListItem(int index, int modeId) {
-	MSPsetMode(index, modeId);
-}
-
-void SetPublicTransitModeSetItem(int index, int modeId) {
-	MSPsetPublicTransit(index, modeId);
-}
-
-void SetSwitchConditionListItem(int index, const char *spCondition) {
-	MSPsetSwitchCondition(index, spCondition);
-}
-
-void SetSwitchingConstraint(int index, VertexValidationChecker callback) {
-	MSPsetSwitchConstraint(index, callback);
-}
-
-void SetTargetConstraint(VertexValidationChecker callback) {
-	MSPsetTargetConstraint(callback);
-}
-
-void SetCostFactor(const char *costFactor) {
-	MSPsetCostFactor(costFactor);
-}
-
-void DisposeRoutingPlan() {
-    MSPclearRoutingPlan();
-}
